@@ -6,7 +6,7 @@ import Quickshell.Services.Pipewire
 import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
 import Quickshell.Widgets
-import "."
+import "Singletons"
 
 PanelWindow {
     id: root

@@ -14,6 +14,7 @@ FOLDERS=(
     "hypr"
     "kitty"
     "mako"
+    "quickshell"
     "Kvantum"
     "scripts"
     "waybar"

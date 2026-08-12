@@ -4,7 +4,7 @@ import Quickshell.Io
 import Quickshell.Services.Mpris
 import Quickshell.Wayland
 import Quickshell.Widgets
-import "../bar" as Bar
+import "Singletons" as Local
 
 PanelWindow {
     id: root
@@ -91,7 +91,7 @@ PanelWindow {
         function toggleTheme(): void {
             root.themePickerOpen = !root.themePickerOpen
             if (root.themePickerOpen)
-                root.themeIndex = Math.max(0, root.themeModes.indexOf(Bar.Theme.mode))
+                root.themeIndex = Math.max(0, root.themeModes.indexOf(Local.Theme.mode))
         }
 
         function toggleWallpaper(): void {
@@ -138,8 +138,8 @@ PanelWindow {
         width: targetWidth
         height: targetHeight
         radius: 15
-        color: Bar.Theme.background
-        border.color: Bar.Theme.accent
+        color: Local.Theme.background
+        border.color: Local.Theme.accent
         border.width: 1
         clip: true
 
@@ -174,7 +174,7 @@ PanelWindow {
             required property string source
 
             radius: width / 2
-            color: Bar.Theme.accent
+            color: Local.Theme.accent
             clip: true
 
             Image {
@@ -187,14 +187,14 @@ PanelWindow {
                 Rectangle {
                     anchors.fill: parent
                     radius: width / 2
-                    color: Bar.Theme.accent
+                    color: Local.Theme.accent
                     visible: parent.status !== Image.Ready
 
                     Text {
                         anchors.centerIn: parent
                         text: "󰎈"
-                        color: Bar.Theme.highlight
-                        font.family: Bar.Theme.font
+                        color: Local.Theme.highlight
+                        font.family: Local.Theme.font
                         font.pixelSize: 16
                     }
                 }
@@ -209,14 +209,14 @@ PanelWindow {
             width: 28
             height: 28
             radius: height / 2
-            color: controlMouse.containsMouse ? Bar.Theme.accent : "transparent"
+            color: controlMouse.containsMouse ? Local.Theme.accent : "transparent"
             opacity: enabled ? 1 : 0.35
 
             Text {
                 anchors.centerIn: parent
                 text: parent.icon
-                color: Bar.Theme.secondaryText
-                font.family: Bar.Theme.font
+                color: Local.Theme.secondaryText
+                font.family: Local.Theme.font
                 font.pixelSize: 15
             }
 
@@ -233,8 +233,8 @@ PanelWindow {
             anchors.centerIn: parent
             visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen
             text: "●  ●"
-            color: Bar.Theme.subtleMuted
-            font.family: Bar.Theme.font
+            color: Local.Theme.subtleMuted
+            font.family: Local.Theme.font
             font.pixelSize: 9
         }
 
@@ -264,8 +264,8 @@ PanelWindow {
             opacity: root.expanded ? 0 : 1
             visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen
             text: root.player ? root.player.trackTitle : ""
-            color: Bar.Theme.text
-            font.family: Bar.Theme.font
+            color: Local.Theme.text
+            font.family: Local.Theme.font
             font.pixelSize: 11
             font.bold: true
             elide: Text.ElideRight
@@ -311,8 +311,8 @@ PanelWindow {
                 Text {
                     width: parent.width
                     text: root.player ? root.player.trackTitle : ""
-                    color: Bar.Theme.text
-                    font.family: Bar.Theme.font
+                    color: Local.Theme.text
+                    font.family: Local.Theme.font
                     font.pixelSize: 11
                     font.bold: true
                     elide: Text.ElideRight
@@ -321,8 +321,8 @@ PanelWindow {
                 Text {
                     width: parent.width
                     text: root.player ? root.player.trackArtist : ""
-                    color: Bar.Theme.muted
-                    font.family: Bar.Theme.font
+                    color: Local.Theme.muted
+                    font.family: Local.Theme.font
                     font.pixelSize: 9
                     elide: Text.ElideRight
                 }
@@ -372,8 +372,8 @@ PanelWindow {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "Theme"
-                    color: Bar.Theme.text
-                    font.family: Bar.Theme.font
+                    color: Local.Theme.text
+                    font.family: Local.Theme.font
                     font.pixelSize: 13
                     font.bold: true
                 }
@@ -396,15 +396,15 @@ PanelWindow {
                         width: 94
                         height: 34
                         radius: height / 2
-                        color: selected || themeMouse.containsMouse ? Bar.Theme.accent : Bar.Theme.surface
-                        border.color: selected ? Bar.Theme.highlight : Bar.Theme.accent
+                        color: selected || themeMouse.containsMouse ? Local.Theme.accent : Local.Theme.surface
+                        border.color: selected ? Local.Theme.highlight : Local.Theme.accent
                         border.width: selected ? 2 : 1
 
                         Text {
                             anchors.centerIn: parent
                             text: modelData === "dark" ? "󰖔  Dark" : "󰖙  Light"
-                            color: Bar.Theme.secondaryText
-                            font.family: Bar.Theme.font
+                            color: Local.Theme.secondaryText
+                            font.family: Local.Theme.font
                             font.pixelSize: 11
                         }
 
@@ -469,7 +469,7 @@ PanelWindow {
                         ClippingRectangle {
                             anchors.fill: parent
                             radius: 12
-                            color: Bar.Theme.surface
+                            color: Local.Theme.surface
 
                             Image {
                                 anchors.fill: parent
@@ -493,7 +493,7 @@ PanelWindow {
                             radius: 12
                             color: "transparent"
                             border.width: thumbnail.selected ? 2 : 1
-                            border.color: thumbnail.selected ? Bar.Theme.highlight : Bar.Theme.accent
+                            border.color: thumbnail.selected ? Local.Theme.highlight : Local.Theme.accent
                         }
 
                         MouseArea {
