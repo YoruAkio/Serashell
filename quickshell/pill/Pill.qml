@@ -19,7 +19,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     mask: Region { item: island }
-    WlrLayershell.keyboardFocus: (themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property var player: {
         const players = Mpris.players.values
@@ -41,9 +41,15 @@ PanelWindow {
     property bool copiedNotice: false
     property int clipboardPreviewVersion: 0
     readonly property string clipboardPreviewDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-clipboard"
+    property bool launcherOpen: false
+    property string launcherQuery: ""
+    property int launcherIndex: 0
+    readonly property var applications: DesktopEntries.applications.values
+    readonly property var filteredApplications: filterApplications(launcherQuery)
+    readonly property var selectedApplication: filteredApplications.length > 0 ? filteredApplications[launcherIndex] : null
     readonly property var filteredClipboard: filterClipboard(clipboardQuery)
     readonly property var selectedClipboard: filteredClipboard.length > 0 ? filteredClipboard[clipboardIndex] : null
-    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || (hasMedia && islandHover.hovered && !copiedNotice)
+    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || (hasMedia && islandHover.hovered && !copiedNotice)
 
     function applyTheme(mode) {
         themeProcess.mode = mode
@@ -113,6 +119,50 @@ PanelWindow {
             return { entry: entry, score: score }
         }).filter(result => result !== null).sort((left, right) => left.score - right.score).map(result => result.entry)
     }
+
+    function filterApplications(query) {
+        const needle = query.toLowerCase().trim()
+        return applications.map(app => {
+            const keywords = app.keywords ? app.keywords.join(" ") : ""
+            const haystack = [app.name, app.genericName, app.comment, keywords].join(" ").toLowerCase()
+            let cursor = 0
+            let score = 0
+            for (let i = 0; i < needle.length; i++) {
+                const match = haystack.indexOf(needle[i], cursor)
+                if (match < 0)
+                    return null
+                score += match - cursor
+                cursor = match + 1
+            }
+            return { app: app, score: score }
+        }).filter(result => result !== null).sort((left, right) => left.score - right.score).map(result => result.app)
+    }
+
+    function openLauncher() {
+        launcherOpen = !launcherOpen
+        if (launcherOpen) {
+            themePickerOpen = false
+            wallpaperPickerOpen = false
+            clipboardPickerOpen = false
+            launcherQuery = ""
+            launcherIndex = 0
+            launcherFocusTimer.restart()
+        }
+    }
+
+    function moveLauncher(step) {
+        if (filteredApplications.length > 0)
+            launcherIndex = Math.max(0, Math.min(filteredApplications.length - 1, launcherIndex + step))
+    }
+
+    function launchApplication(application) {
+        if (!application)
+            return
+        Quickshell.execDetached({ command: application.command, workingDirectory: application.workingDirectory })
+        launcherOpen = false
+    }
+
+    onLauncherQueryChanged: launcherIndex = 0
 
     function openClipboardPicker() {
         clipboardPickerOpen = !clipboardPickerOpen
@@ -193,6 +243,12 @@ PanelWindow {
         onTriggered: root.copiedNotice = false
     }
 
+    Timer {
+        id: launcherFocusTimer
+        interval: 0
+        onTriggered: appLauncher.focusSearch()
+    }
+
     IpcHandler {
         target: "pill"
 
@@ -209,11 +265,15 @@ PanelWindow {
         function toggleClipboard(): void {
             root.openClipboardPicker()
         }
+
+        function toggleLauncher(): void {
+            root.openLauncher()
+        }
     }
 
     FocusScope {
         anchors.fill: parent
-        focus: root.themePickerOpen || root.wallpaperPickerOpen || root.clipboardPickerOpen
+        focus: root.themePickerOpen || root.wallpaperPickerOpen || root.clipboardPickerOpen || root.launcherOpen
         Keys.priority: Keys.BeforeItem
 
         Keys.onPressed: event => {
@@ -221,6 +281,7 @@ PanelWindow {
                 root.themePickerOpen = false
                 root.wallpaperPickerOpen = false
                 root.clipboardPickerOpen = false
+                root.launcherOpen = false
                 event.accepted = true
             } else if (root.themePickerOpen && event.key === Qt.Key_Left) {
                 root.themeIndex = Math.max(0, root.themeIndex - 1)
@@ -266,8 +327,8 @@ PanelWindow {
         border.width: 1
         clip: true
 
-        readonly property real targetWidth: root.clipboardPickerOpen ? 520 : (root.wallpaperPickerOpen ? 460 : (root.themePickerOpen ? 300 : (root.copiedNotice ? 112 : (root.hasMedia ? (root.expanded ? 360 : 260) : 92))))
-        readonly property real targetHeight: root.clipboardPickerOpen ? 400 : (root.wallpaperPickerOpen ? 166 : (root.themePickerOpen ? 88 : (root.hasMedia ? (root.expanded ? 120 : 30) : 24)))
+        readonly property real targetWidth: root.launcherOpen ? 520 : (root.clipboardPickerOpen ? 520 : (root.wallpaperPickerOpen ? 460 : (root.themePickerOpen ? 300 : (root.copiedNotice ? 112 : (root.hasMedia ? (root.expanded ? 360 : 260) : 92)))))
+        readonly property real targetHeight: root.launcherOpen ? 400 : (root.clipboardPickerOpen ? 400 : (root.wallpaperPickerOpen ? 166 : (root.themePickerOpen ? 88 : (root.hasMedia ? (root.expanded ? 120 : 30) : 24))))
         readonly property real morphCloseness: {
             const distance = Math.max(Math.abs(width - targetWidth), Math.abs(height - targetHeight))
             return 1 - Math.min(1, distance / 100)
@@ -354,7 +415,7 @@ PanelWindow {
 
         Text {
             anchors.centerIn: parent
-            visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.copiedNotice
+            visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.copiedNotice
             text: "●  ●"
             color: Local.Theme.subtleMuted
             font.family: Local.Theme.font
@@ -371,7 +432,7 @@ PanelWindow {
             anchors.topMargin: 3
             source: root.player ? root.player.trackArtUrl : ""
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 120 }
@@ -385,7 +446,7 @@ PanelWindow {
             anchors.rightMargin: 9
             anchors.verticalCenter: compactArt.verticalCenter
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.copiedNotice
             text: root.player ? root.player.trackTitle : ""
             color: Local.Theme.text
             font.family: Local.Theme.font
@@ -406,7 +467,7 @@ PanelWindow {
             anchors.topMargin: 12
             height: 96
             opacity: root.expanded ? island.morphCloseness : 0
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 50 }
@@ -489,6 +550,12 @@ PanelWindow {
 
         ClipboardSelector {
             id: clipboardSelector
+            pill: root
+            morphCloseness: island.morphCloseness
+        }
+
+        AppLauncher {
+            id: appLauncher
             pill: root
             morphCloseness: island.morphCloseness
         }
