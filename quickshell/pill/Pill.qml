@@ -18,8 +18,8 @@ PanelWindow {
     implicitHeight: 430
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
-    mask: Region { item: island }
-    WlrLayershell.keyboardFocus: (themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    mask: Region { item: dismissArea.visible ? dismissArea : island }
+    WlrLayershell.keyboardFocus: (themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property var player: {
         const players = Mpris.players.values
@@ -47,9 +47,22 @@ PanelWindow {
     readonly property var applications: DesktopEntries.applications.values
     readonly property var filteredApplications: filterApplications(launcherQuery)
     readonly property var selectedApplication: filteredApplications.length > 0 ? filteredApplications[launcherIndex] : null
+    property bool calendarOpen: false
+    property bool systemOpen: false
+    property date calendarMonth: new Date()
     readonly property var filteredClipboard: filterClipboard(clipboardQuery)
     readonly property var selectedClipboard: filteredClipboard.length > 0 ? filteredClipboard[clipboardIndex] : null
-    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || (hasMedia && islandHover.hovered && !copiedNotice)
+    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || (hasMedia && islandHover.hovered && !copiedNotice)
+    readonly property bool panelOpen: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen
+
+    function closePanels() {
+        themePickerOpen = false
+        wallpaperPickerOpen = false
+        clipboardPickerOpen = false
+        launcherOpen = false
+        calendarOpen = false
+        systemOpen = false
+    }
 
     function applyTheme(mode) {
         themeProcess.mode = mode
@@ -160,6 +173,20 @@ PanelWindow {
             return
         Quickshell.execDetached({ command: application.command, workingDirectory: application.workingDirectory })
         launcherOpen = false
+    }
+
+    function openCalendar() {
+        calendarOpen = !calendarOpen
+        if (calendarOpen) {
+            systemOpen = false
+            calendarMonth = new Date()
+        }
+    }
+
+    function openSystem() {
+        systemOpen = !systemOpen
+        if (systemOpen)
+            calendarOpen = false
     }
 
     onLauncherQueryChanged: launcherIndex = 0
@@ -273,15 +300,12 @@ PanelWindow {
 
     FocusScope {
         anchors.fill: parent
-        focus: root.themePickerOpen || root.wallpaperPickerOpen || root.clipboardPickerOpen || root.launcherOpen
+        focus: root.themePickerOpen || root.wallpaperPickerOpen || root.clipboardPickerOpen || root.launcherOpen || root.calendarOpen || root.systemOpen
         Keys.priority: Keys.BeforeItem
 
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
-                root.themePickerOpen = false
-                root.wallpaperPickerOpen = false
-                root.clipboardPickerOpen = false
-                root.launcherOpen = false
+                root.closePanels()
                 event.accepted = true
             } else if (root.themePickerOpen && event.key === Qt.Key_Left) {
                 root.themeIndex = Math.max(0, root.themeIndex - 1)
@@ -314,6 +338,17 @@ PanelWindow {
         }
     }
 
+    Item {
+        id: dismissArea
+        anchors.fill: parent
+        visible: root.panelOpen
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.closePanels()
+        }
+    }
+
     Rectangle {
         id: island
         anchors.horizontalCenter: parent.horizontalCenter
@@ -327,8 +362,8 @@ PanelWindow {
         border.width: 1
         clip: true
 
-        readonly property real targetWidth: root.launcherOpen ? 520 : (root.clipboardPickerOpen ? 520 : (root.wallpaperPickerOpen ? 460 : (root.themePickerOpen ? 300 : (root.copiedNotice ? 112 : (root.hasMedia ? (root.expanded ? 360 : 260) : 92)))))
-        readonly property real targetHeight: root.launcherOpen ? 400 : (root.clipboardPickerOpen ? 400 : (root.wallpaperPickerOpen ? 166 : (root.themePickerOpen ? 88 : (root.hasMedia ? (root.expanded ? 120 : 30) : 24))))
+        readonly property real targetWidth: root.systemOpen ? 520 : (root.calendarOpen ? 340 : (root.launcherOpen ? 520 : (root.clipboardPickerOpen ? 520 : (root.wallpaperPickerOpen ? 460 : (root.themePickerOpen ? 300 : (root.copiedNotice ? 112 : (root.hasMedia ? (root.expanded ? 360 : 260) : 92)))))))
+        readonly property real targetHeight: root.systemOpen ? 340 : (root.calendarOpen ? 300 : (root.launcherOpen ? 400 : (root.clipboardPickerOpen ? 400 : (root.wallpaperPickerOpen ? 166 : (root.themePickerOpen ? 88 : (root.hasMedia ? (root.expanded ? 154 : 30) : 24))))))
         readonly property real morphCloseness: {
             const distance = Math.max(Math.abs(width - targetWidth), Math.abs(height - targetHeight))
             return 1 - Math.min(1, distance / 100)
@@ -415,7 +450,7 @@ PanelWindow {
 
         Text {
             anchors.centerIn: parent
-            visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.copiedNotice
+            visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
             text: "●  ●"
             color: Local.Theme.subtleMuted
             font.family: Local.Theme.font
@@ -432,7 +467,7 @@ PanelWindow {
             anchors.topMargin: 3
             source: root.player ? root.player.trackArtUrl : ""
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 120 }
@@ -446,7 +481,7 @@ PanelWindow {
             anchors.rightMargin: 9
             anchors.verticalCenter: compactArt.verticalCenter
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
             text: root.player ? root.player.trackTitle : ""
             color: Local.Theme.text
             font.family: Local.Theme.font
@@ -465,9 +500,9 @@ PanelWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.topMargin: 12
-            height: 96
+            height: 134
             opacity: root.expanded ? island.morphCloseness : 0
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 50 }
@@ -479,7 +514,7 @@ PanelWindow {
                 anchors.left: parent.left
                 anchors.leftMargin: 12
                 anchors.top: parent.top
-                anchors.topMargin: 0
+                anchors.topMargin: 38
                 source: root.player ? root.player.trackArtUrl : ""
             }
 
@@ -489,7 +524,7 @@ PanelWindow {
                 anchors.right: parent.right
                 anchors.rightMargin: 12
                 anchors.top: parent.top
-                anchors.topMargin: 2
+                anchors.topMargin: 40
                 spacing: 3
 
                 Text {
@@ -536,6 +571,25 @@ PanelWindow {
                     onActivated: root.player.next()
                 }
             }
+
+            Row {
+                anchors.right: parent.right
+                anchors.rightMargin: 8
+                anchors.top: parent.top
+                spacing: 2
+
+                Control {
+                    icon: "󰃭"
+                    enabled: true
+                    onActivated: root.openCalendar()
+                }
+
+                Control {
+                    icon: "󰍛"
+                    enabled: true
+                    onActivated: root.openSystem()
+                }
+            }
         }
 
         ThemeSelector {
@@ -556,6 +610,16 @@ PanelWindow {
 
         AppLauncher {
             id: appLauncher
+            pill: root
+            morphCloseness: island.morphCloseness
+        }
+
+        CalendarPanel {
+            pill: root
+            morphCloseness: island.morphCloseness
+        }
+
+        SystemPanel {
             pill: root
             morphCloseness: island.morphCloseness
         }

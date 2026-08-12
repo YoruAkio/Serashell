@@ -134,17 +134,18 @@ Item {
                 color: Local.Theme.background
 
                 Image {
+                    id: appIcon
                     anchors.fill: parent
                     source: entry.modelData.icon ? Quickshell.iconPath(entry.modelData.icon) : ""
-                    sourceSize.width: width
-                    sourceSize.height: height
+                    sourceSize.width: 34
+                    sourceSize.height: 34
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                 }
 
                 Text {
                     anchors.centerIn: parent
-                    visible: !entry.modelData.icon
+                    visible: appIcon.status !== Image.Ready
                     text: "󰣆"
                     color: Local.Theme.muted
                     font.family: Local.Theme.font
