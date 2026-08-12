@@ -244,6 +244,28 @@ PanelWindow {
                     }
                 }
             }
+
+            Pill {
+                width: 30
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "󰍜"
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 13
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: controlCenterProcess.running = true
+                }
+
+                Process {
+                    id: controlCenterProcess
+                    command: ["qs", "ipc", "call", "controlCenter", "toggle"]
+                }
+            }
         }
     }
 }
