@@ -5,4 +5,5 @@ ShellRoot {
     Pill.Bar {}
     Pill.Pill {}
     Pill.ControlCenter {}
+    Pill.SettingsWindow {}
 }

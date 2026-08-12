@@ -51,7 +51,7 @@ PanelWindow {
     }
 
     component Pill: Rectangle {
-        radius: height / 2
+        radius: Settings.barRadius
         color: Theme.surface
         height: root.pillHeight
     }

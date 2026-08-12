@@ -76,6 +76,11 @@ PanelWindow {
         command: ["sh", "-c", "$HOME/.config/scripts/theme-mode.sh " + mode]
     }
 
+    Process {
+        id: settingsProcess
+        command: ["qs", "ipc", "call", "pillSettings", "toggle"]
+    }
+
     function openWallpaperPicker() {
         wallpaperPickerOpen = !wallpaperPickerOpen
         if (wallpaperPickerOpen)
@@ -349,21 +354,63 @@ PanelWindow {
         }
     }
 
+    NotchShoulder {
+        visible: Local.Settings.notchMode
+        concaveLeft: true
+        shoulderSize: 18
+        fill: Local.Theme.background
+        anchors.right: island.left
+        anchors.rightMargin: -1
+        anchors.top: island.top
+    }
+
+    NotchShoulder {
+        visible: Local.Settings.notchMode
+        concaveLeft: false
+        shoulderSize: 18
+        fill: Local.Theme.background
+        anchors.left: island.right
+        anchors.leftMargin: -1
+        anchors.top: island.top
+    }
+
     Rectangle {
         id: island
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        anchors.topMargin: 8
+        anchors.topMargin: Local.Settings.notchMode ? 0 : 8
         width: targetWidth
         height: targetHeight
-        radius: 15
+        radius: Local.Settings.pillRadius
+        topLeftRadius: Local.Settings.notchMode ? 0 : radius
+        topRightRadius: Local.Settings.notchMode ? 0 : radius
+        bottomLeftRadius: Local.Settings.notchMode ? 18 : radius
+        bottomRightRadius: Local.Settings.notchMode ? 18 : radius
         color: Local.Theme.background
         border.color: Local.Theme.accent
-        border.width: 1
+        border.width: Local.Settings.notchMode ? 0 : 1
         clip: true
 
-        readonly property real targetWidth: root.systemOpen ? 520 : (root.calendarOpen ? 340 : (root.launcherOpen ? 520 : (root.clipboardPickerOpen ? 520 : (root.wallpaperPickerOpen ? 460 : (root.themePickerOpen ? 300 : (root.copiedNotice ? 112 : (root.hasMedia ? (root.expanded ? 360 : 260) : 92)))))))
-        readonly property real targetHeight: root.systemOpen ? 340 : (root.calendarOpen ? 300 : (root.launcherOpen ? 400 : (root.clipboardPickerOpen ? 400 : (root.wallpaperPickerOpen ? 166 : (root.themePickerOpen ? 88 : (root.hasMedia ? (root.expanded ? 154 : 30) : 24))))))
+        readonly property real targetWidth: {
+            if (root.systemOpen || root.launcherOpen || root.clipboardPickerOpen) return 520
+            if (root.calendarOpen) return 340
+            if (root.wallpaperPickerOpen) return 460
+            if (root.themePickerOpen) return 300
+            if (root.copiedNotice) return 112
+            if (Local.Settings.notchMode) return root.hasMedia && root.expanded ? 360 : 260
+            if (root.hasMedia) return root.expanded ? 360 : 260
+            return 92
+        }
+        readonly property real targetHeight: {
+            if (root.systemOpen) return 340
+            if (root.calendarOpen) return 300
+            if (root.launcherOpen || root.clipboardPickerOpen) return 400
+            if (root.wallpaperPickerOpen) return 166
+            if (root.themePickerOpen) return 88
+            if (Local.Settings.notchMode) return root.hasMedia && root.expanded ? 154 : 36
+            if (root.hasMedia) return root.expanded ? 154 : 30
+            return 24
+        }
         readonly property real morphCloseness: {
             const distance = Math.max(Math.abs(width - targetWidth), Math.abs(height - targetHeight))
             return 1 - Math.min(1, distance / 100)
@@ -424,18 +471,19 @@ PanelWindow {
         component Control: Rectangle {
             required property string icon
             required property bool enabled
+            property bool highlighted: false
             signal activated()
 
-            width: 28
-            height: 28
+            width: highlighted ? 24 : 28
+            height: highlighted ? 24 : 28
             radius: height / 2
-            color: controlMouse.containsMouse ? Local.Theme.accent : "transparent"
+            color: highlighted ? Local.Theme.surface : (controlMouse.containsMouse ? Local.Theme.accent : "transparent")
             opacity: enabled ? 1 : 0.35
 
             Text {
                 anchors.centerIn: parent
                 text: parent.icon
-                color: Local.Theme.secondaryText
+                color: highlighted ? Local.Theme.highlight : Local.Theme.secondaryText
                 font.family: Local.Theme.font
                 font.pixelSize: 15
             }
@@ -452,7 +500,7 @@ PanelWindow {
         Text {
             anchors.centerIn: parent
             visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
-            text: "●  ●"
+            text: Local.Settings.notchMode ? "" : "●  ●"
             color: Local.Theme.subtleMuted
             font.family: Local.Theme.font
             font.pixelSize: 9
@@ -465,7 +513,7 @@ PanelWindow {
             anchors.left: parent.left
             anchors.leftMargin: 6
             anchors.top: parent.top
-            anchors.topMargin: 3
+            anchors.topMargin: Local.Settings.notchMode ? 6 : 3
             artSource: root.player ? root.player.trackArtUrl : ""
             cornerRadius: width / 2
             opacity: root.expanded ? 0 : 1
@@ -575,22 +623,34 @@ PanelWindow {
             }
 
             Row {
-                anchors.right: parent.right
-                anchors.rightMargin: 8
+                anchors.left: parent.left
+                anchors.leftMargin: 8
                 anchors.top: parent.top
                 spacing: 2
 
                 Control {
                     icon: "󰃭"
                     enabled: true
+                    highlighted: true
                     onActivated: root.openCalendar()
                 }
 
                 Control {
                     icon: "󰍛"
                     enabled: true
+                    highlighted: true
                     onActivated: root.openSystem()
                 }
+            }
+
+            Control {
+                anchors.right: parent.right
+                anchors.rightMargin: 10
+                anchors.top: parent.top
+                icon: "󰒓"
+                enabled: true
+                highlighted: true
+                onActivated: settingsProcess.running = true
             }
         }
 
@@ -625,6 +685,7 @@ PanelWindow {
             pill: root
             morphCloseness: island.morphCloseness
         }
+
 
         Text {
             anchors.centerIn: parent
