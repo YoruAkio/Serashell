@@ -19,6 +19,7 @@ Item {
     property var cpuHistory: []
     property var memoryHistory: []
     property var networkHistory: []
+    property bool active: false
 
     function append(history, value) {
         const next = history.slice()
@@ -68,10 +69,13 @@ Item {
 
     Timer {
         interval: 1000
-        running: true
+        running: monitor.active
         repeat: true
         onTriggered: statsProcess.running = true
     }
 
-    Component.onCompleted: statsProcess.running = true
+    onActiveChanged: {
+        if (active)
+            statsProcess.running = true
+    }
 }

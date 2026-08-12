@@ -7,6 +7,9 @@ Item {
     property var pill
     property real morphCloseness: 0
 
+    Component.onCompleted: Local.SystemMonitor.active = true
+    Component.onDestruction: Local.SystemMonitor.active = false
+
     component Metric: Rectangle {
         required property string icon
         required property string label

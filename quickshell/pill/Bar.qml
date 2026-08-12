@@ -221,6 +221,7 @@ PanelWindow {
             }
 
             Pill {
+                visible: Settings.showDate || Settings.showTime
                 width: clockRow.width + 22
 
                 Row {
@@ -229,6 +230,7 @@ PanelWindow {
                     spacing: 10
 
                     Text {
+                        visible: Settings.showDate
                         text: "󰃭 " + Qt.formatDate(root.now, "dd:MM")
                         color: Theme.muted
                         font.family: Theme.font
@@ -236,7 +238,8 @@ PanelWindow {
                     }
 
                     Text {
-                        text: "󰥔 " + Qt.formatTime(root.now, "HH:mm")
+                        visible: Settings.showTime
+                        text: "󰥔 " + Qt.formatTime(root.now, Settings.showSeconds ? "HH:mm:ss" : "HH:mm")
                         color: Theme.text
                         font.family: Theme.font
                         font.pixelSize: 12

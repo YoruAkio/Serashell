@@ -7,6 +7,7 @@ import Quickshell.Services.Pipewire
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "Singletons" as Local
+import "components" as Components
 
 PanelWindow {
     id: root
@@ -32,6 +33,7 @@ PanelWindow {
     property string wifiPassword: ""
     property var bluetoothDevices: []
     property var selectedBluetooth: null
+    signal dismissed()
     readonly property var player: {
         const players = Mpris.players.values
         return players.find(item => item.isPlaying) || players[0] || null
@@ -118,14 +120,6 @@ PanelWindow {
             actionProcess.command = ["bluetoothctl", "remove", mac]
         actionProcess.running = true
         bluetoothRefreshTimer.restart()
-    }
-
-    IpcHandler {
-        target: "controlCenter"
-
-        function toggle(): void {
-            root.toggle()
-        }
     }
 
     PwObjectTracker {
@@ -217,7 +211,10 @@ PanelWindow {
     Timer {
         id: closeTimer
         interval: 160
-        onTriggered: root.shown = false
+        onTriggered: {
+            root.shown = false
+            root.dismissed()
+        }
     }
 
     component ActionTile: Rectangle {
@@ -429,40 +426,13 @@ PanelWindow {
                     spacing: 4
 
                     Text { text: "󰕾  Sound"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 10; font.bold: true }
-                    Slider {
+                    Components.Slider {
                         width: parent.width
                         height: 20
                         from: 0
                         to: 1
                         value: Pipewire.defaultAudioSink?.audio?.volume ?? 0
                         onMoved: { if (Pipewire.defaultAudioSink?.audio) Pipewire.defaultAudioSink.audio.volume = value }
-
-                        background: Rectangle {
-                            x: parent.leftPadding
-                            y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            width: parent.availableWidth
-                            height: 6
-                            radius: height / 2
-                            color: Local.Theme.background
-
-                            Rectangle {
-                                width: parent.parent.visualPosition * parent.width
-                                height: parent.height
-                                radius: parent.radius
-                                color: Local.Theme.highlight
-                            }
-                        }
-
-                        handle: Rectangle {
-                            x: parent.leftPadding + parent.visualPosition * (parent.availableWidth - width)
-                            y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            width: 22
-                            height: 12
-                            radius: height / 2
-                            color: Local.Theme.text
-                            border.color: Local.Theme.accent
-                            border.width: 1
-                        }
                     }
 
                 }
@@ -489,7 +459,7 @@ PanelWindow {
                     spacing: 4
 
                     Text { text: "󰃠  Brightness"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 10; font.bold: true }
-                    Slider {
+                    Components.Slider {
                         id: brightnessSlider
                         width: parent.width
                         height: 20
@@ -500,33 +470,6 @@ PanelWindow {
                             root.brightness = value
                             actionProcess.command = ["brightnessctl", "set", Math.round(value) + "%"]
                             actionProcess.running = true
-                        }
-
-                        background: Rectangle {
-                            x: parent.leftPadding
-                            y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            width: parent.availableWidth
-                            height: 6
-                            radius: height / 2
-                            color: Local.Theme.background
-
-                            Rectangle {
-                                width: parent.parent.visualPosition * parent.width
-                                height: parent.height
-                                radius: parent.radius
-                                color: Local.Theme.highlight
-                            }
-                        }
-
-                        handle: Rectangle {
-                            x: parent.leftPadding + parent.visualPosition * (parent.availableWidth - width)
-                            y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            width: 22
-                            height: 12
-                            radius: height / 2
-                            color: Local.Theme.text
-                            border.color: Local.Theme.accent
-                            border.width: 1
                         }
                     }
                 }

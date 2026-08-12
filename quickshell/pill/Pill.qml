@@ -266,7 +266,7 @@ PanelWindow {
     Timer {
         id: clipboardFocusTimer
         interval: 0
-        onTriggered: clipboardSelector.focusSearch()
+        onTriggered: clipboardLoader.item?.focusSearch()
     }
 
     Timer {
@@ -278,7 +278,7 @@ PanelWindow {
     Timer {
         id: launcherFocusTimer
         interval: 0
-        onTriggered: appLauncher.focusSearch()
+        onTriggered: launcherLoader.item?.focusSearch()
     }
 
     IpcHandler {
@@ -654,36 +654,42 @@ PanelWindow {
             }
         }
 
-        ThemeSelector {
-            pill: root
-            morphCloseness: island.morphCloseness
+        Loader {
+            active: root.themePickerOpen
+            anchors.fill: parent
+            sourceComponent: Component { ThemeSelector { pill: root; morphCloseness: island.morphCloseness } }
         }
 
-        WallpaperSelector {
-            pill: root
-            morphCloseness: island.morphCloseness
+        Loader {
+            active: root.wallpaperPickerOpen
+            anchors.fill: parent
+            sourceComponent: Component { WallpaperSelector { pill: root; morphCloseness: island.morphCloseness } }
         }
 
-        ClipboardSelector {
-            id: clipboardSelector
-            pill: root
-            morphCloseness: island.morphCloseness
+        Loader {
+            id: clipboardLoader
+            active: root.clipboardPickerOpen
+            anchors.fill: parent
+            sourceComponent: Component { ClipboardSelector { pill: root; morphCloseness: island.morphCloseness } }
         }
 
-        AppLauncher {
-            id: appLauncher
-            pill: root
-            morphCloseness: island.morphCloseness
+        Loader {
+            id: launcherLoader
+            active: root.launcherOpen
+            anchors.fill: parent
+            sourceComponent: Component { AppLauncher { pill: root; morphCloseness: island.morphCloseness } }
         }
 
-        CalendarPanel {
-            pill: root
-            morphCloseness: island.morphCloseness
+        Loader {
+            active: root.calendarOpen
+            anchors.fill: parent
+            sourceComponent: Component { CalendarPanel { pill: root; morphCloseness: island.morphCloseness } }
         }
 
-        SystemPanel {
-            pill: root
-            morphCloseness: island.morphCloseness
+        Loader {
+            active: root.systemOpen
+            anchors.fill: parent
+            sourceComponent: Component { SystemPanel { pill: root; morphCloseness: island.morphCloseness } }
         }
 
 
