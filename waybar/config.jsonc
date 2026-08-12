@@ -1,0 +1,201 @@
+{
+  // MAIN BAR //
+  "layer": "top",
+  "position": "top",
+  "name": "main",
+
+  "margin-left": 0,
+  "margin-right": 0,
+  "margin-top": 0,
+
+  "modules-left": ["group/tray", "hyprland/workspaces", "group/window"],
+
+  "modules-center": [],
+
+  "modules-right": [
+    "group/performance",
+    "group/audio",
+    "group/power",
+    "group/clock"
+  ],
+
+  // GROUPS - Rounded boxy containers
+  "group/tray": {
+    "orientation": "horizontal",
+    "modules": ["tray"]
+  },
+
+  "group/window": {
+    "orientation": "horizontal",
+    "modules": ["hyprland/window"]
+  },
+
+  "group/performance": {
+    "orientation": "horizontal",
+    "modules": ["cpu", "temperature", "memory", "network", "custom/codex"]
+  },
+
+  "group/audio": {
+    "orientation": "horizontal",
+    "modules": ["pulseaudio", "backlight"]
+  },
+
+  "group/power": {
+    "orientation": "horizontal",
+    "modules": ["battery"]
+  },
+
+  "group/clock": {
+    "orientation": "horizontal",
+    "modules": ["clock"]
+  },
+
+  // "custom/fans": {
+  //   "exec": "$HOME/.config/scripts/fancheck.sh",
+  //   "format": "{icon} {percentage}%",
+  //   "format-icons": {
+  //     "on": "",
+  //     "off": "󰠝",
+  //   },
+  //   "interval": 5,
+  //   "return-type": "json",
+  // },
+
+  "custom/codex": {
+    "exec": "$HOME/.config/waybar/waybar-codex.py",
+    "interval": 600,
+    "signal": 8,
+    "on-click-right": "sh -c 'rm -f $HOME/.cache/waybar-codex/usage.json && pkill -RTMIN+8 waybar'",
+    "return-type": "json"
+  },
+
+  "backlight": {
+    "format": "{icon} {percent}%",
+    "format-icons": ["󱩎", "󱩑", "󱩓", "󱩕", "󰛨"],
+    "on-click": "brightnessctl set +5%",
+    "on-click-right": "brightnessctl set 5%-"
+  },
+
+  "battery": {
+    "states": {
+      "good": 50,
+      "warning": 20,
+      "critical": 10
+    },
+    "format": "{icon} {capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰚥 {capacity}%",
+    "format-alt": "{icon} {time}",
+    "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+  },
+
+  "clock": {
+    "interval": 1,
+    "format": " {:%d.%m   %H:%M:%S }",
+    "tooltip-format": "{:%d.%m.%Y   Week %W}\n\n<tt><small>{calendar}</small></tt>",
+    "timezone": "Asia/Jakarta",
+    "calendar": {
+      "mode": "month",
+      "mode-mon-col": 3,
+      "weeks-pos": "right", // Nicked from Archttila
+      "on-scroll": 1,
+      "format": {
+        "months": "<span color='#cba6f7'><b>{}</b></span>",
+        "days": "<span color='#cdd6f4'><b>{}</b></span>",
+        "weeks": "<span color='#94e2d5'> W{}</span>",
+        "weekdays": "<span color='#f9e2af'><b>{}</b></span>",
+        "today": "<span color='#f5e0dc'><b><u>{}</u></b></span>"
+      }
+    }
+  },
+
+  "cpu": {
+    "interval": 4,
+    "format": " {usage}%",
+    "states": {
+      "warning": 80,
+      "critical": 95
+    }
+  },
+
+  "memory": {
+    "interval": 4,
+    "format": " {percentage}%",
+    "states": {
+      "warning": 80,
+      "critical": 95
+    },
+    "tooltip": "{}",
+    "tooltip-format": "{used}/{total} GiB"
+  },
+
+  "network": {
+    "interval": 2,
+    "format": "󱘖  Offline",
+    "format-wifi": "{icon} {bandwidthDownBits}",
+    "format-ethernet": "󰈀 {bandwidthDownBits}",
+    "min-length": 11,
+    "tooltip": "{}",
+    "tooltip-format-wifi": "{ifname}\n{essid}\n{signalStrength}% \n{frequency} GHz\n󰇚 {bandwidthDownBits}\n󰕒 {bandwidthUpBits}",
+    "tooltip-format-ethernet": "{ifname}\n󰇚 {bandwidthDownBits} \n󰕒 {bandwidthUpBits}",
+    "format-icons": ["󰤫", "󰤟", "󰤢", "󰤥", "󰤨"],
+    "states": {
+      "normal": 25
+    }
+  },
+
+  "hyprland/workspaces": {
+    "format": "{name}",
+    "on-click": "activate",
+    "on-scroll-up": "hyprctl dispatch workspace e-1",
+    "on-scroll-down": "hyprctl dispatch workspace e+1",
+    "all-outputs": false,
+    "active-only": false,
+    "persistent-workspaces": {
+      "*": 5
+    }
+  },
+
+  "hyprland/window": {
+    "format": "{}",
+    "max-length": 50,
+    "separate-outputs": true,
+    "rewrite": {
+      "": "Desktop"
+    }
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-bluetooth": "󰂰 {volume}%",
+    "format-bluetooth-muted": "󰂲 {icon}",
+    "format-muted": "󰝟",
+    "format-icons": {
+      "headphone": "󰋋",
+      "hands-free": "󰥰",
+      "headset": "󰋎",
+      "phone": "󰏲",
+      "portable": "󰄝",
+      "car": "󰄋",
+      "default": ["󰕿", "󰖀", "󰕾"]
+    },
+    "on-click": "pavucontrol-qt",
+    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+    "on-scroll-up": "pactl set-sink-volume @DEFAULT_SINK@ +2%",
+    "on-scroll-down": "pactl set-sink-volume @DEFAULT_SINK@ -2%"
+  },
+
+  "temperature": {
+    "hwmon-path": "/sys/devices/platform/PNP0C14:02/wmi_bus/wmi_bus-PNP0C14:02/F1DDEE52-063C-4784-A11E-8A06684B9B01/hwmon/hwmon5/temp1_input",
+    "critical-threshold": 90,
+    "interval": 4,
+    "format": "{icon} {temperatureC}°",
+    "format-icons": ["", "", "", "", ""],
+    "tooltip": false
+  },
+
+  "tray": {
+    "icon-size": 17,
+    "spacing": 8
+  }
+}

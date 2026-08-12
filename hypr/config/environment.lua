@@ -1,0 +1,6 @@
+hl.env("HYPRSHOT_DIR", os.getenv("HOME") .. "/Pictures/screenshots")
+hl.env("XCURSOR_SIZE", "24")
+hl.env("HYPRCURSOR_SIZE", "24")
+hl.env("AQ_DRM_DEVICES", "/dev/dri/card1:/dev/dri/card0")
+hl.env("QT_STYLE_OVERRIDE", "kvantum")
+hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")

@@ -1,0 +1,10 @@
+# wp_rice light theme
+
+background=#F1DBC2
+surface=#DFC8B1
+dark_accent=#CCB7A0
+primary_text=#352B2D
+secondary_text=#44373A
+muted=#625458
+subtle_muted=#857974
+highlight=#4B3D43

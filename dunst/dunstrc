@@ -1,0 +1,89 @@
+[global]
+    monitor = 0
+    follow = mouse
+    width = (320, 420)
+    height = (0, 180)
+    origin = top-right
+    offset = (20, 20)
+    scale = 0
+    notification_limit = 4
+    indicate_hidden = yes
+
+    progress_bar = true
+    progress_bar_height = 6
+    progress_bar_frame_width = 0
+    progress_bar_min_width = 180
+    progress_bar_max_width = 360
+
+    gap_size = 10
+    padding = 14
+    horizontal_padding = 16
+    text_icon_padding = 12
+    frame_width = 2
+    frame_color = "#2d4f67"
+    corner_radius = 14
+    sort = yes
+
+    font = SF Pro Display Medium 11
+    line_height = 0
+    markup = full
+    format = "<b>%s</b>\n%b"
+    alignment = left
+    vertical_alignment = center
+    ellipsize = end
+    show_age_threshold = 60
+    stack_duplicates = true
+    hide_duplicate_count = false
+    show_indicators = yes
+
+    enable_recursive_icon_lookup = true
+    icon_theme = Adwaita
+    icon_position = left
+    min_icon_size = 36
+    max_icon_size = 64
+
+    sticky_history = yes
+    history_length = 100
+    dmenu = /usr/bin/fuzzel --dmenu -p notifications:
+    browser = /usr/bin/xdg-open
+    always_run_script = true
+
+    mouse_left_click = do_action
+    mouse_middle_click = close_current
+    mouse_right_click = context
+
+[urgency_low]
+    background = "#1f1f28e6"
+    foreground = "#a6a69c"
+    frame_color = "#54546d"
+    highlight = "#727169"
+    timeout = 4
+
+[urgency_normal]
+    background = "#1f1f28f2"
+    foreground = "#dcd7ba"
+    frame_color = "#2d4f67"
+    highlight = "#7e9cd8"
+    timeout = 7
+
+[urgency_critical]
+    background = "#1f1f28"
+    foreground = "#e82424"
+    frame_color = "#c34043"
+    highlight = "#e82424"
+    timeout = 0
+
+[brightness]
+    summary = " Light"
+    history_ignore = yes
+    set_stack_tag = "brightness"
+
+[music]
+    desktop_entry = spotify
+    history_ignore = yes
+    set_stack_tag = "music"
+
+[volume]
+    summary = "Volume*"
+    history_ignore = yes
+    set_stack_tag = "volume"
