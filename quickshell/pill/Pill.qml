@@ -389,23 +389,24 @@ PanelWindow {
             id: islandHover
         }
 
-        component Art: Rectangle {
-            required property string source
+        component Art: ClippingRectangle {
+            id: artFrame
+            required property string artSource
+            property real cornerRadius: 8
 
-            radius: width / 2
+            radius: cornerRadius
             color: Local.Theme.accent
-            clip: true
 
             Image {
                 anchors.fill: parent
-                source: parent.source
+                source: artFrame.artSource
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 mipmap: true
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: width / 2
+                    radius: artFrame.radius
                     color: Local.Theme.accent
                     visible: parent.status !== Image.Ready
 
@@ -465,7 +466,8 @@ PanelWindow {
             anchors.leftMargin: 6
             anchors.top: parent.top
             anchors.topMargin: 3
-            source: root.player ? root.player.trackArtUrl : ""
+            artSource: root.player ? root.player.trackArtUrl : ""
+            cornerRadius: width / 2
             opacity: root.expanded ? 0 : 1
             visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
 
@@ -515,7 +517,7 @@ PanelWindow {
                 anchors.leftMargin: 12
                 anchors.top: parent.top
                 anchors.topMargin: 38
-                source: root.player ? root.player.trackArtUrl : ""
+                artSource: root.player ? root.player.trackArtUrl : ""
             }
 
             Column {
