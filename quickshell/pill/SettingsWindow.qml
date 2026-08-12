@@ -168,7 +168,9 @@ PanelWindow {
                 color: Local.Theme.background
 
                 Column {
-                    anchors.fill: parent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
                     anchors.margins: 12
                     spacing: 4
 
@@ -200,6 +202,61 @@ PanelWindow {
                         label: "Date & Time"
                         selected: root.page === "clock"
                         onActivated: root.page = "clock"
+                    }
+                }
+
+                Row {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 12
+                    spacing: 5
+
+                    Rectangle {
+                        width: 34
+                        height: 34
+                        radius: 9
+                        color: githubMouse.containsMouse ? Local.Theme.surface : Local.Theme.accent
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: ""
+                            color: Local.Theme.text
+                            font.family: Local.Theme.font
+                            font.pixelSize: 14
+                        }
+
+                        MouseArea {
+                            id: githubMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: Quickshell.execDetached({ command: ["xdg-open", "https://github.com/YoruAkio/Serashell"] })
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width - 39
+                        height: 34
+                        radius: 9
+                        color: resetMouse.containsMouse ? Local.Theme.surface : Local.Theme.accent
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 9
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "󰑓  Reset"
+                            color: Local.Theme.text
+                            font.family: Local.Theme.font
+                            font.pixelSize: 10
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            id: resetMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: Local.Settings.reset()
+                        }
                     }
                 }
             }

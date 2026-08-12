@@ -1,0 +1,6 @@
+barRadius=15
+pillRadius=15
+notchMode=false
+showDate=true
+showTime=true
+showSeconds=false

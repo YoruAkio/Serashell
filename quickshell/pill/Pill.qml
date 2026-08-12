@@ -19,7 +19,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     mask: Region { item: dismissArea.visible ? dismissArea : island }
-    WlrLayershell.keyboardFocus: (themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property var player: {
         const players = Mpris.players.values
@@ -39,6 +39,7 @@ PanelWindow {
     property string clipboardQuery: ""
     property int clipboardIndex: 0
     property bool copiedNotice: false
+    property string copiedNoticeText: "󰄬  Copied!"
     property int clipboardPreviewVersion: 0
     readonly property string clipboardPreviewDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-clipboard"
     property bool launcherOpen: false
@@ -49,11 +50,17 @@ PanelWindow {
     readonly property var selectedApplication: filteredApplications.length > 0 ? filteredApplications[launcherIndex] : null
     property bool calendarOpen: false
     property bool systemOpen: false
+    property bool emojiPickerOpen: false
+    property int emojiIndex: 0
+    property string emojiQuery: ""
+    property var emojiEntries: []
+    readonly property string emojiDataPath: Quickshell.env("HOME") + "/.config/quickshell/pill/data/emoji-test.txt"
+    readonly property var filteredEmojis: emojiEntries.filter(entry => entry.name.toLowerCase().includes(emojiQuery.toLowerCase().trim()) || entry.emoji.includes(emojiQuery.trim()))
     property date calendarMonth: new Date()
     readonly property var filteredClipboard: filterClipboard(clipboardQuery)
     readonly property var selectedClipboard: filteredClipboard.length > 0 ? filteredClipboard[clipboardIndex] : null
-    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || (hasMedia && islandHover.hovered && !copiedNotice)
-    readonly property bool panelOpen: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen
+    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen || (hasMedia && islandHover.hovered && !copiedNotice)
+    readonly property bool panelOpen: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen
 
     function closePanels() {
         themePickerOpen = false
@@ -62,6 +69,8 @@ PanelWindow {
         launcherOpen = false
         calendarOpen = false
         systemOpen = false
+        emojiPickerOpen = false
+        emojiEntries = []
     }
 
     function applyTheme(mode) {
@@ -222,9 +231,58 @@ PanelWindow {
         clipboardCopyProcess.command = ["sh", "-c", "printf '%s' \"$1\" | cliphist decode | wl-copy", "clipboard-copy", entry.id]
         clipboardCopyProcess.running = true
         clipboardPickerOpen = false
+        copiedNoticeText = "󰄬  Copied!"
         copiedNotice = true
         copiedNoticeTimer.restart()
     }
+
+    function openEmojiPicker() {
+        emojiPickerOpen = !emojiPickerOpen
+        if (emojiPickerOpen) {
+            closePanels()
+            emojiPickerOpen = true
+            emojiQuery = ""
+            emojiIndex = 0
+            emojiDataProcess.running = true
+            emojiFocusTimer.restart()
+        }
+    }
+
+    function moveEmoji(horizontal, vertical) {
+        const next = emojiIndex + horizontal + vertical * 6
+        emojiIndex = Math.max(0, Math.min(filteredEmojis.length - 1, next))
+    }
+
+    function copyEmoji(entry) {
+        if (!entry)
+            return
+        emojiCopyProcess.command = ["sh", "-c", "printf '%s' \"$1\" | wl-copy", "emoji-copy", entry.emoji]
+        emojiCopyProcess.running = true
+        emojiPickerOpen = false
+        copiedNoticeText = "󰄬  Emoji Copied!"
+        copiedNotice = true
+        copiedNoticeTimer.restart()
+    }
+
+    Process { id: emojiCopyProcess }
+
+    Process {
+        id: emojiDataProcess
+        command: ["sh", "-c", "awk '/; fully-qualified/ { split($0, a, \"# \"); emoji = a[2]; sub(/ E[0-9.]+ .*/, \"\", emoji); name = a[2]; sub(/^.* E[0-9.]+ /, \"\", name); printf \"%s\\t%s\\n\", emoji, name }' \"$1\"", "emoji-data", root.emojiDataPath]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!root.emojiPickerOpen)
+                    return
+                root.emojiEntries = this.text.trim().split("\n").map(line => {
+                    const separator = line.indexOf("\t")
+                    return separator > 0 ? { emoji: line.slice(0, separator), name: line.slice(separator + 1) } : null
+                }).filter(entry => entry !== null)
+            }
+        }
+    }
+
+    onEmojiQueryChanged: emojiIndex = 0
 
     Process {
         id: clipboardProcess
@@ -281,6 +339,12 @@ PanelWindow {
         onTriggered: launcherLoader.item?.focusSearch()
     }
 
+    Timer {
+        id: emojiFocusTimer
+        interval: 0
+        onTriggered: emojiLoader.item?.focusSearch()
+    }
+
     IpcHandler {
         target: "pill"
 
@@ -301,11 +365,15 @@ PanelWindow {
         function toggleLauncher(): void {
             root.openLauncher()
         }
+
+        function toggleEmoji(): void {
+            root.openEmojiPicker()
+        }
     }
 
     FocusScope {
         anchors.fill: parent
-        focus: root.themePickerOpen || root.wallpaperPickerOpen || root.clipboardPickerOpen || root.launcherOpen || root.calendarOpen || root.systemOpen
+        focus: root.themePickerOpen || root.wallpaperPickerOpen || root.clipboardPickerOpen || root.launcherOpen || root.calendarOpen || root.systemOpen || root.emojiPickerOpen
         Keys.priority: Keys.BeforeItem
 
         Keys.onPressed: event => {
@@ -338,6 +406,21 @@ PanelWindow {
                 event.accepted = true
             } else if (root.clipboardPickerOpen && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
                 root.copyClipboard(root.selectedClipboard)
+                event.accepted = true
+            } else if (root.emojiPickerOpen && event.key === Qt.Key_Left) {
+                root.moveEmoji(-1, 0)
+                event.accepted = true
+            } else if (root.emojiPickerOpen && event.key === Qt.Key_Right) {
+                root.moveEmoji(1, 0)
+                event.accepted = true
+            } else if (root.emojiPickerOpen && event.key === Qt.Key_Up) {
+                root.moveEmoji(0, -1)
+                event.accepted = true
+            } else if (root.emojiPickerOpen && event.key === Qt.Key_Down) {
+                root.moveEmoji(0, 1)
+                event.accepted = true
+            } else if (root.emojiPickerOpen && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+                root.copyEmoji(root.filteredEmojis[root.emojiIndex])
                 event.accepted = true
             }
         }
@@ -393,10 +476,11 @@ PanelWindow {
 
         readonly property real targetWidth: {
             if (root.systemOpen || root.launcherOpen || root.clipboardPickerOpen) return 520
+            if (root.emojiPickerOpen) return 430
             if (root.calendarOpen) return 340
             if (root.wallpaperPickerOpen) return 460
             if (root.themePickerOpen) return 300
-            if (root.copiedNotice) return 112
+            if (root.copiedNotice) return root.copiedNoticeText.includes("Emoji") ? 170 : 132
             if (Local.Settings.notchMode) return root.hasMedia && root.expanded ? 360 : 260
             if (root.hasMedia) return root.expanded ? 360 : 260
             return 92
@@ -405,10 +489,12 @@ PanelWindow {
             if (root.systemOpen) return 340
             if (root.calendarOpen) return 300
             if (root.launcherOpen || root.clipboardPickerOpen) return 400
+            if (root.emojiPickerOpen) return 376
             if (root.wallpaperPickerOpen) return 166
             if (root.themePickerOpen) return 88
             if (Local.Settings.notchMode) return root.hasMedia && root.expanded ? 154 : 36
             if (root.hasMedia) return root.expanded ? 154 : 30
+            if (root.copiedNotice) return 28
             return 24
         }
         readonly property real morphCloseness: {
@@ -499,7 +585,7 @@ PanelWindow {
 
         Text {
             anchors.centerIn: parent
-            visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
+            visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
             text: Local.Settings.notchMode ? "" : "●  ●"
             color: Local.Theme.subtleMuted
             font.family: Local.Theme.font
@@ -517,7 +603,7 @@ PanelWindow {
             artSource: root.player ? root.player.trackArtUrl : ""
             cornerRadius: width / 2
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 120 }
@@ -531,7 +617,7 @@ PanelWindow {
             anchors.rightMargin: 9
             anchors.verticalCenter: compactArt.verticalCenter
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
             text: root.player ? root.player.trackTitle : ""
             color: Local.Theme.text
             font.family: Local.Theme.font
@@ -552,7 +638,7 @@ PanelWindow {
             anchors.topMargin: 12
             height: 134
             opacity: root.expanded ? island.morphCloseness : 0
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 50 }
@@ -692,11 +778,18 @@ PanelWindow {
             sourceComponent: Component { SystemPanel { pill: root; morphCloseness: island.morphCloseness } }
         }
 
+        Loader {
+            id: emojiLoader
+            active: root.emojiPickerOpen
+            anchors.fill: parent
+            sourceComponent: Component { EmojiSelector { pill: root; morphCloseness: island.morphCloseness } }
+        }
+
 
         Text {
             anchors.centerIn: parent
-            visible: root.copiedNotice && !root.clipboardPickerOpen
-            text: "󰄬  Copied!"
+            visible: root.copiedNotice && !root.clipboardPickerOpen && !root.emojiPickerOpen
+            text: root.copiedNoticeText
             color: Local.Theme.text
             font.family: Local.Theme.font
             font.pixelSize: 11

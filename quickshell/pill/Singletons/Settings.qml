@@ -14,10 +14,16 @@ Item {
     property bool showTime: true
     property bool showSeconds: false
     readonly property string path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings"
+    readonly property string defaultPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings.default"
 
     function save() {
         saveProcess.command = ["sh", "-c", "mkdir -p \"$(dirname \"$1\")\" && printf 'barRadius=%s\\npillRadius=%s\\nnotchMode=%s\\nshowDate=%s\\nshowTime=%s\\nshowSeconds=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" > \"$1\"", "pill-settings", path, barRadius, pillRadius, notchMode ? "true" : "false", showDate ? "true" : "false", showTime ? "true" : "false", showSeconds ? "true" : "false"]
         saveProcess.running = true
+    }
+
+    function reset() {
+        resetProcess.command = ["sh", "-c", "cp \"$2\" \"$1\"", "pill-settings-reset", path, defaultPath]
+        resetProcess.running = true
     }
 
     FileView {
@@ -42,4 +48,5 @@ Item {
     }
 
     Process { id: saveProcess }
+    Process { id: resetProcess; onExited: settingsFile.reload() }
 }
