@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import "Singletons" as Local
 import "components" as Components
@@ -7,14 +8,16 @@ FloatingWindow {
     id: root
 
     title: "Serashell"
-    implicitWidth: 820
-    implicitHeight: 530
-    minimumSize: Qt.size(600, 420)
+    implicitWidth: 1040
+    implicitHeight: 720
+    minimumSize: Qt.size(760, 520)
     color: "transparent"
     visible: open
 
     property bool open: true
-    property string page: "appearance"
+    property string page: "bar"
+    property bool barExpanded: true
+    property bool pillExpanded: false
     property bool islandStyleMenuOpen: false
     signal dismissed()
 
@@ -29,10 +32,13 @@ FloatingWindow {
         required property string icon
         required property string label
         required property bool selected
+        property bool expandable: false
+        property bool expanded: false
         signal activated()
 
-        width: parent.width
-        height: 34
+        width: parent.width - 8
+        x: 4
+        height: 30
         radius: 9
         color: selected ? Local.Theme.highlight : sidebarMouse.containsMouse ? Local.Theme.surface : "transparent"
 
@@ -41,6 +47,17 @@ FloatingWindow {
             anchors.leftMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             text: sidebarItem.icon
+            color: sidebarItem.selected ? Local.Theme.background : Local.Theme.secondaryText
+            font.family: Local.Theme.font
+            font.pixelSize: 16
+        }
+
+        Text {
+            visible: sidebarItem.expandable
+            anchors.right: parent.right
+            anchors.rightMargin: 11
+            anchors.verticalCenter: parent.verticalCenter
+            text: sidebarItem.expanded ? "󰅀" : "󰅂"
             color: sidebarItem.selected ? Local.Theme.background : Local.Theme.secondaryText
             font.family: Local.Theme.font
             font.pixelSize: 14
@@ -53,7 +70,7 @@ FloatingWindow {
             text: sidebarItem.label
             color: sidebarItem.selected ? Local.Theme.background : Local.Theme.text
             font.family: Local.Theme.font
-            font.pixelSize: 13
+            font.pixelSize: 14
             font.bold: sidebarItem.selected
         }
 
@@ -63,6 +80,25 @@ FloatingWindow {
             hoverEnabled: true
             onClicked: sidebarItem.activated()
         }
+    }
+
+    component SidebarChild: Rectangle {
+        id: sidebarChild
+
+        required property string icon
+        required property string label
+        required property bool selected
+        signal activated()
+
+        width: parent.width - 28
+        x: 24
+        height: 28
+        radius: 7
+        color: selected ? Local.Theme.accent : childMouse.containsMouse ? Local.Theme.surface : "transparent"
+
+        Text { anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter; text: sidebarChild.icon; color: Local.Theme.secondaryText; font.family: Local.Theme.font; font.pixelSize: 13 }
+        Text { anchors.left: parent.left; anchors.leftMargin: 32; anchors.verticalCenter: parent.verticalCenter; text: sidebarChild.label; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 12; font.bold: sidebarChild.selected }
+        MouseArea { id: childMouse; anchors.fill: parent; hoverEnabled: true; onClicked: sidebarChild.activated() }
     }
 
     component SettingRow: Item {
@@ -82,7 +118,7 @@ FloatingWindow {
             text: parent.label
             color: Local.Theme.text
             font.family: Local.Theme.font
-            font.pixelSize: 13
+            font.pixelSize: 14
             font.bold: true
         }
 
@@ -93,7 +129,7 @@ FloatingWindow {
             text: parent.description
             color: Local.Theme.muted
             font.family: Local.Theme.font
-            font.pixelSize: 10
+            font.pixelSize: 11
         }
 
         Components.Toggle {
@@ -102,6 +138,38 @@ FloatingWindow {
             interactive: parent.enabled
             checked: parent.checked
             onToggled: value => parent.toggled(value)
+        }
+    }
+
+    component PanelSizeRow: Item {
+        required property string label
+        required property string sizeProperty
+
+        width: parent.width
+        height: 42
+
+        function setSize(value) {
+            Local.Settings[sizeProperty] = value
+            Local.Settings.save()
+        }
+
+        Text {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.label
+            color: Local.Theme.text
+            font.family: Local.Theme.font
+            font.pixelSize: 14
+            font.bold: true
+        }
+
+        Row {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+
+            Components.ValueStepper { value: Local.Settings[parent.parent.sizeProperty]; minimum: 50; maximum: 200; onChanged: value => parent.parent.setSize(value) }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: "%"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 12 }
         }
     }
 
@@ -160,10 +228,10 @@ FloatingWindow {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                anchors.topMargin: 24
-                anchors.bottomMargin: 16
-                anchors.leftMargin: 8
-                width: 172
+                anchors.topMargin: 8
+                anchors.bottomMargin: 4
+                anchors.leftMargin: 2
+                width: 210
                 radius: 15
                 color: Local.Theme.background
 
@@ -176,7 +244,7 @@ FloatingWindow {
 
                     Item {
                         width: parent.width
-                        height: 42
+                        height: 34
 
                         Text {
                             anchors.left: parent.left
@@ -186,7 +254,7 @@ FloatingWindow {
                             text: "󰒓"
                             color: Local.Theme.text
                             font.family: Local.Theme.font
-                            font.pixelSize: 17
+                            font.pixelSize: 19
                         }
 
                         Text {
@@ -197,32 +265,36 @@ FloatingWindow {
                             text: "Serashell"
                             color: Local.Theme.text
                             font.family: Local.Theme.font
-                            font.pixelSize: 16
+                            font.pixelSize: 18
                             font.bold: true
                         }
 
                     }
 
                     SidebarItem {
-                        icon: "󰘔"
-                        label: "Appearance"
-                        selected: root.page === "appearance"
-                        onActivated: root.page = "appearance"
+                        icon: "󰌷"
+                        label: "Bar Settings"
+                        selected: root.page === "bar"
+                        expandable: true
+                        expanded: root.barExpanded
+                        onActivated: { root.page = "bar"; root.barExpanded = !root.barExpanded }
                     }
 
-                    SidebarItem {
-                        icon: "󰃭"
-                        label: "Date & Time"
-                        selected: root.page === "clock"
-                        onActivated: root.page = "clock"
-                    }
+                    SidebarChild { visible: root.barExpanded; icon: "󰌷"; label: "Bar elements"; selected: root.page === "bar-elements"; onActivated: root.page = "bar-elements" }
+                    SidebarChild { visible: root.barExpanded; icon: "󰃭"; label: "Date & Time"; selected: root.page === "clock"; onActivated: root.page = "clock" }
+                    SidebarChild { visible: root.barExpanded; icon: "󰍛"; label: "System status"; selected: root.page === "system"; onActivated: root.page = "system" }
 
                     SidebarItem {
-                        icon: "󰍛"
-                        label: "System status"
-                        selected: root.page === "system"
-                        onActivated: root.page = "system"
+                        icon: "󰒓"
+                        label: "Pill Settings"
+                        selected: root.page === "pill"
+                        expandable: true
+                        expanded: root.pillExpanded
+                        onActivated: { root.page = "pill"; root.pillExpanded = !root.pillExpanded }
                     }
+
+                    SidebarChild { visible: root.pillExpanded; icon: "󰘔"; label: "Pill style"; selected: root.page === "pill-style"; onActivated: root.page = "pill-style" }
+                    SidebarChild { visible: root.pillExpanded; icon: "󰧑"; label: "Panel sizes"; selected: root.page === "panel-sizes"; onActivated: root.page = "panel-sizes" }
                 }
 
                 Row {
@@ -288,45 +360,54 @@ FloatingWindow {
                 anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                anchors.leftMargin: 6
-                anchors.rightMargin: 8
-                anchors.topMargin: 8
-                anchors.bottomMargin: 8
-                radius: 20
+                anchors.leftMargin: 2
+                anchors.rightMargin: 2
+                anchors.topMargin: 4
+                anchors.bottomMargin: 4
+                radius: 15
                 color: Local.Theme.surface
             }
 
-            Item {
-                id: content
-
+            Flickable {
+                id: contentViewport
                 anchors.fill: contentBackground
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                anchors.topMargin: 20
-                anchors.bottomMargin: 20
+                anchors.topMargin: 38
+                clip: true
+                contentWidth: width
+                contentHeight: content.height + 40
+
+                ScrollBar.vertical: ScrollBar { }
+
+                Item {
+                    id: content
+                    x: 20
+                    y: 4
+                    width: contentViewport.width - 40
+                    height: root.page === "bar-elements" ? 400 : root.page === "panel-sizes" ? 340 : contentViewport.height - 40
 
                 Column {
-                    visible: root.page === "appearance"
+                    visible: root.page === "pill" || root.page === "pill-style"
                     anchors.fill: parent
                     spacing: 5
 
                     Text {
-                        text: "Appearance"
+                        text: root.page === "pill-style" ? "Pill style" : "Pill Settings"
                         color: Local.Theme.text
                         font.family: Local.Theme.font
-                        font.pixelSize: 18
+                        font.pixelSize: 20
                         font.bold: true
                     }
 
                     Text {
-                        text: "Shape and presentation"
+                        text: root.page === "pill-style" ? "Choose the center presentation" : "Center island shape"
                         color: Local.Theme.muted
                         font.family: Local.Theme.font
-                        font.pixelSize: 12
+                        font.pixelSize: 13
                     }
 
                     Repeater {
-                        model: ["Bar roundness", "Pill roundness"]
+                        model: ["Pill roundness"]
+                        visible: root.page === "pill"
 
                         delegate: Item {
                             id: radiusRow
@@ -335,13 +416,10 @@ FloatingWindow {
                             required property string modelData
                             width: content.width
                             height: 44
-                            readonly property int value: index === 0 ? Local.Settings.barRadius : Local.Settings.pillRadius
+                            readonly property int value: Local.Settings.pillRadius
 
                             function setValue(next) {
-                                if (index === 0)
-                                    Local.Settings.barRadius = next
-                                else
-                                    Local.Settings.pillRadius = next
+                                Local.Settings.pillRadius = next
                                 Local.Settings.save()
                             }
 
@@ -351,13 +429,14 @@ FloatingWindow {
                                 text: radiusRow.modelData
                                 color: Local.Theme.text
                                 font.family: Local.Theme.font
-                                font.pixelSize: 13
+                                font.pixelSize: 14
                             }
 
                             Components.ValueStepper {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 value: radiusRow.value
+                                maximum: 15
                                 onChanged: value => radiusRow.setValue(value)
                             }
                         }
@@ -365,6 +444,7 @@ FloatingWindow {
 
                     Item {
                         id: islandStyleRow
+                        visible: root.page === "pill-style"
 
                         width: parent.width
                         height: 44
@@ -375,7 +455,7 @@ FloatingWindow {
                             text: "Island style"
                             color: Local.Theme.text
                             font.family: Local.Theme.font
-                            font.pixelSize: 13
+                            font.pixelSize: 14
                         }
 
                         Components.Dropdown {
@@ -507,6 +587,52 @@ FloatingWindow {
                 }
 
                 Column {
+                    visible: root.page === "bar"
+                    width: parent.width
+                    spacing: 8
+
+                    Text { text: "Bar Settings"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
+                    Text { text: "Bar shape and placement"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
+                    Item {
+                        width: parent.width
+                        height: 34
+                        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Bar roundness"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14 }
+                        Components.ValueStepper { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; value: Local.Settings.barRadius; maximum: 15; onChanged: value => { Local.Settings.barRadius = value; Local.Settings.save() } }
+                    }
+                }
+
+                Column {
+                    visible: root.page === "bar-elements"
+                    width: parent.width
+                    spacing: 8
+
+                    Text { text: "Bar elements"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
+                    Text { text: "Choose which controls appear in the top bar"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
+
+                    SettingRow { label: "System tray"; description: "Display application status icons"; enabled: true; checked: Local.Settings.showTray; onToggled: value => { Local.Settings.showTray = value; Local.Settings.save() } }
+                    SettingRow { label: "Workspaces"; description: "Display Hyprland workspace buttons"; enabled: true; checked: Local.Settings.showWorkspaces; onToggled: value => { Local.Settings.showWorkspaces = value; Local.Settings.save() } }
+                    SettingRow { label: "System status"; description: "Display CPU, RAM, temperature, and network"; enabled: true; checked: Local.Settings.showCpu || Local.Settings.showMemory || Local.Settings.showTemperature || Local.Settings.showNetwork; onToggled: value => { Local.Settings.showCpu = value; Local.Settings.showMemory = value; Local.Settings.showTemperature = value; Local.Settings.showNetwork = value; Local.Settings.save() } }
+                    SettingRow { label: "Speaker"; description: "Display volume and mute control"; enabled: true; checked: Local.Settings.showAudio; onToggled: value => { Local.Settings.showAudio = value; Local.Settings.save() } }
+                    SettingRow { label: "Brightness"; description: "Display brightness control"; enabled: true; checked: Local.Settings.showBrightness; onToggled: value => { Local.Settings.showBrightness = value; Local.Settings.save() } }
+                    SettingRow { label: "Battery"; description: "Display battery percentage"; enabled: true; checked: Local.Settings.showBattery; onToggled: value => { Local.Settings.showBattery = value; Local.Settings.save() } }
+                    SettingRow { label: "Control centre"; description: "Display the quick controls button"; enabled: true; checked: Local.Settings.showControlCenter; onToggled: value => { Local.Settings.showControlCenter = value; Local.Settings.save() } }
+                }
+
+                Column {
+                    visible: root.page === "panel-sizes"
+                    width: parent.width
+                    spacing: 10
+
+                    Text { text: "Panel sizes"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
+                    Text { text: "Scale each panel from its default size"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
+                    PanelSizeRow { label: "Media"; sizeProperty: "mediaPanelSize" }
+                    PanelSizeRow { label: "Clipboard"; sizeProperty: "clipboardPanelSize" }
+                    PanelSizeRow { label: "App launcher"; sizeProperty: "launcherPanelSize" }
+                    PanelSizeRow { label: "Wallpaper selector"; sizeProperty: "wallpaperPanelSize" }
+                    PanelSizeRow { label: "Theme selector"; sizeProperty: "themePanelSize" }
+                }
+
+                Column {
                     visible: root.page === "clock"
                     anchors.fill: parent
                     spacing: 14
@@ -515,7 +641,7 @@ FloatingWindow {
                         text: "Date & Time"
                         color: Local.Theme.text
                         font.family: Local.Theme.font
-                        font.pixelSize: 18
+                        font.pixelSize: 20
                         font.bold: true
                     }
 
@@ -523,7 +649,7 @@ FloatingWindow {
                         text: "Choose what appears in the bar clock"
                         color: Local.Theme.muted
                         font.family: Local.Theme.font
-                        font.pixelSize: 12
+                        font.pixelSize: 13
                     }
 
                     Rectangle {
@@ -581,7 +707,7 @@ FloatingWindow {
                         text: "System status"
                         color: Local.Theme.text
                         font.family: Local.Theme.font
-                        font.pixelSize: 18
+                        font.pixelSize: 20
                         font.bold: true
                     }
 
@@ -589,7 +715,7 @@ FloatingWindow {
                         text: "Choose what appears in the bar"
                         color: Local.Theme.muted
                         font.family: Local.Theme.font
-                        font.pixelSize: 12
+                        font.pixelSize: 13
                     }
 
                     Rectangle {
@@ -614,7 +740,7 @@ FloatingWindow {
                         width: parent.width
                         height: 34
 
-                        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Temperature unit"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 13 }
+                        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Temperature unit"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14 }
                         Components.Dropdown { id: temperatureDropdown; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; options: [{ label: "Celsius (°C)" }, { label: "Fahrenheit (°F)" }]; currentIndex: Local.Settings.temperatureUnit === "F" ? 1 : 0; onSelected: index => { Local.Settings.temperatureUnit = index === 1 ? "F" : "C"; Local.Settings.save() } }
                     }
 
@@ -622,9 +748,10 @@ FloatingWindow {
                         width: parent.width
                         height: 34
 
-                        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Network display"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 13 }
+                        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Network display"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14 }
                         Components.Dropdown { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; options: [{ label: "Download" }, { label: "Upload" }, { label: "Both" }]; currentIndex: Local.Settings.networkMode === "download" ? 0 : Local.Settings.networkMode === "upload" ? 1 : 2; onSelected: index => { Local.Settings.networkMode = ["download", "upload", "both"][index]; Local.Settings.save() } }
                     }
+                }
                 }
             }
         }

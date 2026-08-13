@@ -28,7 +28,7 @@ Item {
             radius: height / 2
             color: Local.Theme.surface
             Text { anchors.centerIn: parent; text: "−"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 15 }
-            MouseArea { anchors.fill: parent; onClicked: stepper.changed(Math.max(stepper.minimum, stepper.value - 1)) }
+            MouseArea { anchors.fill: parent; onPressed: stepper.changed(Math.max(stepper.minimum, stepper.value - 1)) }
         }
 
         TextInput {
@@ -58,7 +58,7 @@ Item {
             radius: height / 2
             color: Local.Theme.surface
             Text { anchors.centerIn: parent; text: "+"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 15 }
-            MouseArea { anchors.fill: parent; onClicked: stepper.changed(Math.min(stepper.maximum, stepper.value + 1)) }
+            MouseArea { anchors.fill: parent; onPressed: stepper.changed(Math.min(stepper.maximum, stepper.value + 1)) }
         }
     }
 }

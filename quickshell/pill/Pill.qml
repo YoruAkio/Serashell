@@ -26,6 +26,7 @@ PanelWindow {
         return players.find(player => player.isPlaying) || players[0] || null
     }
     readonly property bool hasMedia: player && player.trackTitle !== ""
+    readonly property bool idleMedia: !hasMedia
     property bool themePickerOpen: false
     readonly property var themeModes: ["dark", "light"]
     property int themeIndex: 0
@@ -59,7 +60,7 @@ PanelWindow {
     property date calendarMonth: new Date()
     readonly property var filteredClipboard: filterClipboard(clipboardQuery)
     readonly property var selectedClipboard: filteredClipboard.length > 0 ? filteredClipboard[clipboardIndex] : null
-    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen || (hasMedia && islandHover.hovered && !copiedNotice)
+    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen || ((hasMedia || idleMedia) && islandHover.hovered && !copiedNotice)
     readonly property bool panelOpen: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen
 
     function closePanels() {
@@ -477,33 +478,38 @@ PanelWindow {
         radius: Local.Settings.pillRadius
         topLeftRadius: Local.Settings.notchMode ? 0 : radius
         topRightRadius: Local.Settings.notchMode ? 0 : radius
-        bottomLeftRadius: Local.Settings.notchMode ? 18 : radius
-        bottomRightRadius: Local.Settings.notchMode ? 18 : radius
+        bottomLeftRadius: radius
+        bottomRightRadius: radius
         color: Local.Theme.background
         border.color: Local.Theme.accent
         border.width: Local.Settings.notchMode ? 0 : 1
         clip: true
 
         readonly property real targetWidth: {
-            if (root.systemOpen || root.launcherOpen || root.clipboardPickerOpen) return 520
+            if (root.systemOpen) return 520
+            if (root.launcherOpen) return 520 * Local.Settings.launcherPanelSize / 100
+            if (root.clipboardPickerOpen) return 520 * Local.Settings.clipboardPanelSize / 100
             if (root.emojiPickerOpen) return 430
             if (root.calendarOpen) return 340
-            if (root.wallpaperPickerOpen) return 460
-            if (root.themePickerOpen) return 300
+            if (root.wallpaperPickerOpen) return 460 * Local.Settings.wallpaperPanelSize / 100
+            if (root.themePickerOpen) return 340 * Local.Settings.themePanelSize / 100
             if (root.copiedNotice) return root.copiedNoticeText.includes("Emoji") ? 170 : 132
-            if (Local.Settings.notchMode) return root.hasMedia && root.expanded ? 360 : 260
-            if (root.hasMedia) return root.expanded ? 360 : 260
+            if (Local.Settings.notchMode) return root.expanded ? 420 * Local.Settings.mediaPanelSize / 100 : 260
+            if (root.hasMedia) return root.expanded ? 420 * Local.Settings.mediaPanelSize / 100 : 260
+            if (root.idleMedia) return root.expanded ? 420 * Local.Settings.mediaPanelSize / 100 : 92
             return 92
         }
         readonly property real targetHeight: {
             if (root.systemOpen) return 340
             if (root.calendarOpen) return 300
-            if (root.launcherOpen || root.clipboardPickerOpen) return 400
+            if (root.launcherOpen) return 400 * Local.Settings.launcherPanelSize / 100
+            if (root.clipboardPickerOpen) return 400 * Local.Settings.clipboardPanelSize / 100
             if (root.emojiPickerOpen) return 376
-            if (root.wallpaperPickerOpen) return 166
-            if (root.themePickerOpen) return 88
-            if (Local.Settings.notchMode) return root.hasMedia && root.expanded ? 154 : 36
-            if (root.hasMedia) return root.expanded ? 154 : 30
+            if (root.wallpaperPickerOpen) return 166 * Local.Settings.wallpaperPanelSize / 100
+            if (root.themePickerOpen) return 100 * Local.Settings.themePanelSize / 100
+            if (Local.Settings.notchMode) return root.expanded ? 180 * Local.Settings.mediaPanelSize / 100 : 36
+            if (root.hasMedia) return root.expanded ? 180 * Local.Settings.mediaPanelSize / 100 : 30
+            if (root.idleMedia) return root.expanded ? 180 * Local.Settings.mediaPanelSize / 100 : 24
             if (root.copiedNotice) return 28
             return 24
         }
@@ -568,10 +574,11 @@ PanelWindow {
             required property string icon
             required property bool enabled
             property bool highlighted: false
+            property real contentScale: 1
             signal activated()
 
-            width: highlighted ? 24 : 28
-            height: highlighted ? 24 : 28
+            width: (highlighted ? 24 : 28) * contentScale
+            height: (highlighted ? 24 : 28) * contentScale
             radius: height / 2
             color: highlighted ? Local.Theme.surface : (controlMouse.containsMouse ? Local.Theme.accent : "transparent")
             opacity: enabled ? 1 : 0.35
@@ -581,7 +588,7 @@ PanelWindow {
                 text: parent.icon
                 color: highlighted ? Local.Theme.highlight : Local.Theme.secondaryText
                 font.family: Local.Theme.font
-                font.pixelSize: 15
+                font.pixelSize: 15 * parent.contentScale
             }
 
             MouseArea {
@@ -594,12 +601,15 @@ PanelWindow {
         }
 
         Text {
-            anchors.centerIn: parent
-            visible: !root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
-            text: Local.Settings.notchMode ? "" : "●  ●"
+            anchors.horizontalCenter: Local.Settings.notchMode ? undefined : parent.horizontalCenter
+            anchors.left: Local.Settings.notchMode ? parent.left : undefined
+            anchors.leftMargin: Local.Settings.notchMode ? 12 : 0
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !root.hasMedia && !root.expanded && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
+            text: Local.Settings.notchMode ? "" : "●  ●"
             color: Local.Theme.subtleMuted
             font.family: Local.Theme.font
-            font.pixelSize: 9
+            font.pixelSize: Local.Settings.notchMode ? 16 : 10
         }
 
         Art {
@@ -645,50 +655,51 @@ PanelWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.topMargin: 12
-            height: 134
+            anchors.topMargin: 12 * contentScale
+            height: parent.height - anchors.topMargin
+            readonly property real contentScale: Math.min(parent.width / 420, parent.height / 180)
             opacity: root.expanded ? island.morphCloseness : 0
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
+            visible: (root.hasMedia || root.idleMedia) && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 50 }
             }
 
             Art {
-                width: 54
+                width: 100 * details.contentScale
                 height: width
                 anchors.left: parent.left
-                anchors.leftMargin: 12
+                anchors.leftMargin: 12 * details.contentScale
                 anchors.top: parent.top
-                anchors.topMargin: 38
+                anchors.topMargin: 38 * details.contentScale
                 artSource: root.player ? root.player.trackArtUrl : ""
             }
 
             Column {
                 anchors.left: parent.left
-                anchors.leftMargin: 78
+                anchors.leftMargin: 126 * details.contentScale
                 anchors.right: parent.right
-                anchors.rightMargin: 12
+                anchors.rightMargin: 12 * details.contentScale
                 anchors.top: parent.top
-                anchors.topMargin: 40
-                spacing: 3
+                anchors.topMargin: 40 * details.contentScale
+                spacing: 3 * details.contentScale
 
                 Text {
                     width: parent.width
-                    text: root.player ? root.player.trackTitle : ""
+                    text: root.hasMedia ? root.player.trackTitle : "No Media Running"
                     color: Local.Theme.text
                     font.family: Local.Theme.font
-                    font.pixelSize: 11
+                    font.pixelSize: 11 * details.contentScale
                     font.bold: true
                     elide: Text.ElideRight
                 }
 
                 Text {
                     width: parent.width
-                    text: root.player ? root.player.trackArtist : ""
+                    text: root.hasMedia ? root.player.trackArtist : "No Author"
                     color: Local.Theme.muted
                     font.family: Local.Theme.font
-                    font.pixelSize: 9
+                    font.pixelSize: 9 * details.contentScale
                     elide: Text.ElideRight
                 }
             }
@@ -696,38 +707,42 @@ PanelWindow {
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 8
-                spacing: 10
+                anchors.bottomMargin: 8 * details.contentScale
+                spacing: 10 * details.contentScale
 
                 Control {
                     icon: "󰒮"
                     enabled: root.player?.canGoPrevious ?? false
+                    contentScale: details.contentScale
                     onActivated: root.player.previous()
                 }
 
                 Control {
                     icon: root.player?.isPlaying ? "󰏤" : "󰐊"
                     enabled: root.player?.canTogglePlaying ?? false
+                    contentScale: details.contentScale
                     onActivated: root.player.togglePlaying()
                 }
 
                 Control {
                     icon: "󰒭"
                     enabled: root.player?.canGoNext ?? false
+                    contentScale: details.contentScale
                     onActivated: root.player.next()
                 }
             }
 
             Row {
                 anchors.left: parent.left
-                anchors.leftMargin: 8
+                anchors.leftMargin: 8 * details.contentScale
                 anchors.top: parent.top
-                spacing: 2
+                spacing: 2 * details.contentScale
 
                 Control {
                     icon: "󰃭"
                     enabled: true
                     highlighted: true
+                    contentScale: details.contentScale
                     onActivated: root.openCalendar()
                 }
 
@@ -735,17 +750,19 @@ PanelWindow {
                     icon: "󰍛"
                     enabled: true
                     highlighted: true
+                    contentScale: details.contentScale
                     onActivated: root.openSystem()
                 }
             }
 
             Control {
                 anchors.right: parent.right
-                anchors.rightMargin: 10
+                anchors.rightMargin: 10 * details.contentScale
                 anchors.top: parent.top
                 icon: "󰒓"
                 enabled: true
                 highlighted: true
+                contentScale: details.contentScale
                 onActivated: settingsProcess.running = true
             }
         }

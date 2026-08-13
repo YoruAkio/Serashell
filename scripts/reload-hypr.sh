@@ -6,6 +6,7 @@
 hyprctl reload
 
 # @note reload waybar
-pkill waybar
+qs kill
 # # Wait for Wayland to be ready and start waybar with inherited environment
-nohup waybar > /tmp/waybar.log 2>&1 &
+# nohup waybar > /tmp/waybar.log 2>&1 &
+qs

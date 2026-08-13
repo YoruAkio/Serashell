@@ -117,6 +117,7 @@ PanelWindow {
             spacing: 8
 
             Pill {
+                visible: Settings.showTray
                 width: trayRow.width + 20
 
                 Row {
@@ -147,6 +148,7 @@ PanelWindow {
             }
 
             Pill {
+                visible: Settings.showWorkspaces
                 width: workspaceRow.width + 12
 
                 Row {
@@ -238,6 +240,7 @@ PanelWindow {
             }
 
             Pill {
+                visible: Settings.showAudio || Settings.showBrightness
                 width: systemRow.width + 22
 
                 Row {
@@ -246,6 +249,7 @@ PanelWindow {
                     spacing: 12
 
                     Text {
+                        visible: Settings.showAudio
                         text: {
                             const sink = Pipewire.defaultAudioSink
                             if (!sink || !sink.audio || sink.audio.muted) return "󰝟"
@@ -273,6 +277,7 @@ PanelWindow {
                     }
 
                     Text {
+                        visible: Settings.showBrightness
                         text: "󰃠 " + root.brightness
                         color: Theme.secondaryText
                         font.family: Theme.font
@@ -297,7 +302,7 @@ PanelWindow {
             }
 
             Pill {
-                visible: UPower.displayDevice !== null
+                visible: Settings.showBattery && UPower.displayDevice !== null
                 width: batteryText.width + 22
 
                 Text {
@@ -339,6 +344,7 @@ PanelWindow {
             }
 
             Pill {
+                visible: Settings.showControlCenter
                 width: 30
 
                 Text {

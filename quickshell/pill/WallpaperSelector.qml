@@ -7,20 +7,16 @@ Item {
 
     property var pill
     property real morphCloseness: 0
+    readonly property real contentScale: Math.min(width / 460, height / 166)
 
     anchors.fill: parent
     visible: pill.wallpaperPickerOpen
-    opacity: visible ? morphCloseness : 0
-
-    Behavior on opacity {
-        NumberAnimation { duration: 120 }
-    }
 
     Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        height: 106
+        height: 106 * selector.contentScale
         clip: true
 
         Repeater {
@@ -32,10 +28,10 @@ Item {
                 required property int index
                 required property string modelData
                 readonly property bool selected: index === selector.pill.wallpaperIndex
-                x: parent.width / 2 - width / 2 + (index - selector.pill.wallpaperIndex) * 130
+                x: parent.width / 2 - width / 2 + (index - selector.pill.wallpaperIndex) * 130 * selector.contentScale
                 y: parent.height / 2 - height / 2
-                width: 120
-                height: 100
+                width: 120 * selector.contentScale
+                height: 100 * selector.contentScale
                 opacity: selected ? 1 : 0.65
 
                 Behavior on x {
@@ -44,7 +40,7 @@ Item {
 
                 ClippingRectangle {
                     anchors.fill: parent
-                    radius: 12
+                    radius: 12 * selector.contentScale
                     color: Local.Theme.surface
 
                     Image {
@@ -66,7 +62,7 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 12
+                    radius: 12 * selector.contentScale
                     color: "transparent"
                     border.width: thumbnail.selected ? 2 : 1
                     border.color: thumbnail.selected ? Local.Theme.highlight : Local.Theme.accent
