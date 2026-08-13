@@ -18,6 +18,7 @@ The main interface is a compact, theme-aware Quickshell shell with a top bar, Dy
 The active Quickshell configuration lives in `quickshell/`.
 
 - **Dynamic Island / macOS Notch** — switchable presentation styles
+- **Top bar** — system tray, workspaces, active window title, system status, AI usage, sound, brightness, battery, and clock
 - **Control Centre** — Wi-Fi, Bluetooth, media, theme, screenshot, sound, and brightness
 - **Panels** — calendar, system monitor, media details, frequently used app launcher, clipboard history, wallpaper picker, theme selection, and AI usage
 - **App launcher** — fuzzy search with persistent most-used application ranking

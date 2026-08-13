@@ -461,7 +461,7 @@ FloatingWindow {
                     x: 20
                     y: 4
                     width: contentViewport.width - 40
-                    height: root.page === "bar-elements" ? 400 : root.page === "panel-sizes" ? 340 : contentViewport.height - 40
+                    height: root.page === "bar-elements" ? 625 : root.page === "panel-sizes" ? 340 : contentViewport.height - 40
 
                 Column {
                     visible: root.page === "pill" || root.page === "pill-style"
@@ -689,8 +689,12 @@ FloatingWindow {
 
                     SettingRow { label: "System tray"; description: "Display application status icons"; enabled: true; checked: Local.Settings.showTray; onToggled: value => { Local.Settings.showTray = value; Local.Settings.save() } }
                     SettingRow { label: "Workspaces"; description: "Display Hyprland workspace buttons"; enabled: true; checked: Local.Settings.showWorkspaces; onToggled: value => { Local.Settings.showWorkspaces = value; Local.Settings.save() } }
-                    SettingRow { label: "System status"; description: "Display CPU, RAM, temperature, and network"; enabled: true; checked: Local.Settings.showCpu || Local.Settings.showMemory || Local.Settings.showTemperature || Local.Settings.showNetwork; onToggled: value => { Local.Settings.showCpu = value; Local.Settings.showMemory = value; Local.Settings.showTemperature = value; Local.Settings.showNetwork = value; Local.Settings.save() } }
-                    SettingRow { label: "Speaker"; description: "Display volume and mute control"; enabled: true; checked: Local.Settings.showAudio; onToggled: value => { Local.Settings.showAudio = value; Local.Settings.save() } }
+                    SettingRow { label: "Window name"; description: "Display the active window title"; enabled: true; checked: Local.Settings.showWindowTitle; onToggled: value => { Local.Settings.showWindowTitle = value; Local.Settings.save() } }
+                    SettingRow { label: "CPU usage"; description: "Display processor load"; enabled: true; checked: Local.Settings.showCpu; onToggled: value => { Local.Settings.showCpu = value; Local.Settings.save() } }
+                    SettingRow { label: "RAM usage"; description: "Display memory use"; enabled: true; checked: Local.Settings.showMemory; onToggled: value => { Local.Settings.showMemory = value; Local.Settings.save() } }
+                    SettingRow { label: "Temperature"; description: "Display system temperature"; enabled: true; checked: Local.Settings.showTemperature; onToggled: value => { Local.Settings.showTemperature = value; Local.Settings.save() } }
+                    SettingRow { label: "Network speed"; description: "Display network throughput"; enabled: true; checked: Local.Settings.showNetwork; onToggled: value => { Local.Settings.showNetwork = value; Local.Settings.save() } }
+                    SettingRow { label: "Sound"; description: "Display volume and mute control"; enabled: true; checked: Local.Settings.showAudio; onToggled: value => { Local.Settings.showAudio = value; Local.Settings.save() } }
                     SettingRow { label: "Brightness"; description: "Display brightness control"; enabled: true; checked: Local.Settings.showBrightness; onToggled: value => { Local.Settings.showBrightness = value; Local.Settings.save() } }
                     SettingRow { label: "Battery"; description: "Display battery percentage"; enabled: true; checked: Local.Settings.showBattery; onToggled: value => { Local.Settings.showBattery = value; Local.Settings.save() } }
                     SettingRow { label: "Control centre"; description: "Display the quick controls button"; enabled: true; checked: Local.Settings.showControlCenter; onToggled: value => { Local.Settings.showControlCenter = value; Local.Settings.save() } }

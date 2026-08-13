@@ -6,6 +6,7 @@ showTime=true
 showSeconds=false
 showTray=true
 showWorkspaces=true
+showWindowTitle=true
 showAudio=true
 showBrightness=true
 showBattery=true

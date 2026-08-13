@@ -31,7 +31,7 @@ PanelWindow {
                 return
             let group = groups.find(item => item.id === metric.id)
             if (!group) {
-                group = { id: metric.id, metrics: [], todayCost: metric.todayCost || 0, monthCost: metric.monthCost || 0, todayTokens: metric.todayTokens || 0, monthTokens: metric.monthTokens || 0 }
+                group = { id: metric.id, metrics: [], todayCost: metric.todayCost || 0, monthCost: metric.monthCost || 0, yesterdayCost: metric.yesterdayCost || 0, todayTokens: metric.todayTokens || 0, monthTokens: metric.monthTokens || 0, yesterdayTokens: metric.yesterdayTokens || 0 }
                 groups.push(group)
             }
             group.metrics.push(metric)
@@ -56,7 +56,7 @@ PanelWindow {
     }
 
     function money(value) {
-        if (value >= 1000) return "$" + (value / 1000).toFixed(1) + "K"
+        if (value >= 1000) return "$" + (value / 1000).toFixed(1).replace(".0", "") + "K"
         return "$" + value.toFixed(2)
     }
 
@@ -213,7 +213,7 @@ PanelWindow {
                             required property int index
                             required property var modelData
                             width: dashboard.width
-                            height: 64 + modelData.metrics.length * 52
+                            height: 64 + modelData.metrics.length * 52 + (root.spendPeriod === "month" ? 18 : 0)
 
                             Text { anchors.left: parent.left; anchors.leftMargin: 8; anchors.top: parent.top; anchors.topMargin: 5; text: root.providerName(providerCard.modelData.id); color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14; font.bold: true }
 
@@ -272,7 +272,39 @@ PanelWindow {
                                 }
                             }
 
-                            Text { anchors.left: metricsCard.left; anchors.leftMargin: 14; anchors.bottom: metricsCard.bottom; anchors.bottomMargin: 9; text: root.money(root.spendPeriod === "today" ? providerCard.modelData.todayCost : providerCard.modelData.monthCost) + " · " + root.tokens(root.spendPeriod === "today" ? providerCard.modelData.todayTokens : providerCard.modelData.monthTokens); color: Local.Theme.secondaryText; font.family: Local.Theme.font; font.pixelSize: 11; font.bold: true }
+                            Column {
+                                anchors.left: metricsCard.left
+                                anchors.right: metricsCard.right
+                                anchors.leftMargin: 14
+                                anchors.rightMargin: 14
+                                anchors.bottom: metricsCard.bottom
+                                anchors.bottomMargin: 8
+                                spacing: 2
+
+                                Text {
+                                    visible: root.spendPeriod === "today"
+                                    text: root.money(providerCard.modelData.todayCost) + " · " + root.tokens(providerCard.modelData.todayTokens)
+                                    color: Local.Theme.secondaryText
+                                    font.family: Local.Theme.font
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                }
+
+                                Repeater {
+                                    model: root.spendPeriod === "month" ? [
+                                        { label: "Today", cost: providerCard.modelData.todayCost, tokens: providerCard.modelData.todayTokens },
+                                        { label: "Yesterday", cost: providerCard.modelData.yesterdayCost, tokens: providerCard.modelData.yesterdayTokens }
+                                    ] : []
+
+                                    delegate: Item {
+                                        required property var modelData
+                                        width: parent.width
+                                        height: 14
+                                        Text { anchors.left: parent.left; text: root.money(parent.modelData.cost) + " · " + root.tokens(parent.modelData.tokens); color: Local.Theme.secondaryText; font.family: Local.Theme.font; font.pixelSize: 11; font.bold: true }
+                                        Text { anchors.right: parent.right; text: parent.modelData.label; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 10 }
+                                    }
+                                }
+                            }
                         }
                     }
             }

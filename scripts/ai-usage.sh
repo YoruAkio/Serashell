@@ -5,12 +5,13 @@ emit() {
     jq -cn --arg id "$1" --arg label "$2" --argjson used "$3" \
         --argjson todayCost "${4:-0}" --argjson monthCost "${5:-0}" \
         --argjson todayTokens "${6:-0}" --argjson monthTokens "${7:-0}" \
-        '{id:$id,label:$label,used:($used|round),remaining:(100-($used|round)),todayCost:$todayCost,monthCost:$monthCost,todayTokens:$todayTokens,monthTokens:$monthTokens}'
+        --argjson yesterdayCost "${8:-0}" --argjson yesterdayTokens "${9:-0}" \
+        '{id:$id,label:$label,used:($used|round),remaining:(100-($used|round)),todayCost:$todayCost,monthCost:$monthCost,todayTokens:$todayTokens,monthTokens:$monthTokens,yesterdayCost:$yesterdayCost,yesterdayTokens:$yesterdayTokens}'
 }
 
 if [[ ${1:-} == --self-test ]]; then
-    emit codex Session 41.4 1.25 7.5 1000 5000 |
-        jq -e '.id == "codex" and .used == 41 and .remaining == 59 and .monthCost == 7.5 and .monthTokens == 5000' >/dev/null
+    emit codex Session 41.4 1.25 7.5 1000 5000 0.75 600 |
+        jq -e '.id == "codex" and .used == 41 and .remaining == 59 and .monthCost == 7.5 and .monthTokens == 5000 and .yesterdayCost == 0.75 and .yesterdayTokens == 600' >/dev/null
     exit
 fi
 
@@ -20,7 +21,7 @@ cache_seconds=${2:-300}
 force=${3:-}
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/serashell/ai-usage
 cache_key=$(printf '%s' "$1" | tr -cd 'a-zA-Z0-9,_-')
-usage_cache=$cache_dir/usage-v5-$cache_key.jsonl
+usage_cache=$cache_dir/usage-v6-$cache_key.jsonl
 pricing_cache=$cache_dir/pricing-litellm.json
 supplement_cache=$cache_dir/pricing-openusage.json
 mkdir -p "$cache_dir"
@@ -80,12 +81,13 @@ request() {
 }
 
 claude_spend() {
-    [[ -r "$pricing_cache" ]] || { printf '0 0 0 0'; return; }
-    local today_start
+    [[ -r "$pricing_cache" ]] || { printf '0 0 0 0 0 0'; return; }
+    local today_start yesterday_start
     today_start=$(date -d 'today 00:00' +%s)
+    yesterday_start=$(date -d 'yesterday 00:00' +%s)
     find "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects" -type f -name '*.jsonl' -mtime -31 -print0 2>/dev/null |
         while IFS= read -r -d '' file; do
-            jq -r --argjson todayStart "$today_start" --slurpfile prices "$pricing_cache" '
+            jq -r --argjson todayStart "$today_start" --argjson yesterdayStart "$yesterday_start" --slurpfile prices "$pricing_cache" '
                 select(.message.usage and .timestamp)
                 | .message.usage as $u
                 | (.message.model // "") as $model
@@ -98,19 +100,21 @@ claude_spend() {
                     + ($u.output_tokens // 0) * ($rate.output_cost_per_token // 0)
                   )) as $cost
                 | ((.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) >= $todayStart) as $isToday
-                | [if $isToday then $cost else 0 end, $cost, if $isToday then $tokens else 0 end, $tokens]
+                | ((.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) >= $yesterdayStart and (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) < $todayStart) as $isYesterday
+                | [if $isToday then $cost else 0 end, $cost, if $isToday then $tokens else 0 end, $tokens, if $isYesterday then $cost else 0 end, if $isYesterday then $tokens else 0 end]
                 | @tsv' "$file" 2>/dev/null
-        done | awk '{tc += $1; mc += $2; tt += $3; mt += $4} END {printf "%.6f %.6f %.0f %.0f", tc, mc, tt, mt}'
+        done | awk '{tc += $1; mc += $2; tt += $3; mt += $4; yc += $5; yt += $6} END {printf "%.6f %.6f %.0f %.0f %.6f %.0f", tc, mc, tt, mt, yc, yt}'
 }
 
 codex_spend() {
-    [[ -r "$pricing_cache" ]] || { printf '0 0 0 0'; return; }
-    local codex_root today_start
+    [[ -r "$pricing_cache" ]] || { printf '0 0 0 0 0 0'; return; }
+    local codex_root today_start yesterday_start
     codex_root=${CODEX_HOME:-$HOME/.codex}
     today_start=$(date -d 'today 00:00' +%s)
+    yesterday_start=$(date -d 'yesterday 00:00' +%s)
     find "$codex_root/sessions" "$codex_root/archived_sessions" -type f -name '*.jsonl' -mtime -31 -print0 2>/dev/null |
         while IFS= read -r -d '' file; do
-            jq -sr --argjson todayStart "$today_start" --slurpfile prices "$pricing_cache" '
+            jq -sr --argjson todayStart "$today_start" --argjson yesterdayStart "$yesterday_start" --slurpfile prices "$pricing_cache" '
                 ([.[] | select(.type == "turn_context") | .payload.model // .payload.model_name] | map(select(. != null)) | last // "gpt-5") as $model
                 | ($prices[0][$model] // $prices[0]["openai/" + $model] // {}) as $rate
                 | [.[] | select(.type == "event_msg" and .payload.type == "token_count" and .payload.info.last_token_usage)
@@ -120,20 +124,21 @@ codex_spend() {
                       + ($u.output_tokens // 0) * ($rate.output_cost_per_token // 0)) as $cost
                     | (($u.input_tokens // 0) + ($u.output_tokens // 0)) as $tokens
                     | ((.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) >= $todayStart) as $isToday
-                    | [if $isToday then $cost else 0 end, $cost, if $isToday then $tokens else 0 end, $tokens]]
-                | reduce .[] as $row ([0,0,0,0]; [.[0]+$row[0], .[1]+$row[1], .[2]+$row[2], .[3]+$row[3]])
+                    | ((.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) >= $yesterdayStart and (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) < $todayStart) as $isYesterday
+                    | [if $isToday then $cost else 0 end, $cost, if $isToday then $tokens else 0 end, $tokens, if $isYesterday then $cost else 0 end, if $isYesterday then $tokens else 0 end]]
+                | reduce .[] as $row ([0,0,0,0,0,0]; [.[0]+$row[0], .[1]+$row[1], .[2]+$row[2], .[3]+$row[3], .[4]+$row[4], .[5]+$row[5]])
                 | @tsv' "$file" 2>/dev/null
-        done | awk '{tc += $1; mc += $2; tt += $3; mt += $4} END {printf "%.6f %.6f %.0f %.0f", tc, mc, tt, mt}'
+        done | awk '{tc += $1; mc += $2; tt += $3; mt += $4; yc += $5; yt += $6} END {printf "%.6f %.6f %.0f %.0f %.6f %.0f", tc, mc, tt, mt, yc, yt}'
 }
 
 cursor_spend() {
     local token=$1 segment subject user start end config csv_file today
-    [[ -r "$pricing_cache" && -r "$supplement_cache" ]] || { printf '0 0 0 0'; return; }
+    [[ -r "$pricing_cache" && -r "$supplement_cache" ]] || { printf '0 0 0 0 0 0'; return; }
     segment=$(printf '%s' "$token" | cut -d. -f2 | tr '_-' '/+')
     while (( ${#segment} % 4 )); do segment="${segment}="; done
     subject=$(printf '%s' "$segment" | base64 -d 2>/dev/null | jq -r '.sub // empty')
     user=${subject#*|}
-    [[ -n "$user" ]] || { printf '0 0 0 0'; return; }
+    [[ -n "$user" ]] || { printf '0 0 0 0 0 0'; return; }
     start=$(( $(date -d '29 days ago 00:00' +%s) * 1000 ))
     end=$(( $(date +%s) * 1000 ))
     today=$(date +%F)
@@ -145,7 +150,7 @@ cursor_spend() {
         --data-urlencode "startDate=$start" --data-urlencode "endDate=$end" --data-urlencode 'strategy=tokens' \
         https://cursor.com/api/dashboard/export-usage-events-csv -o "$csv_file" 2>/dev/null; then
         rm -f "$config" "$csv_file"
-        printf '0 0 0 0'
+        printf '0 0 0 0 0 0'
         return
     fi
     python - "$csv_file" "$pricing_cache" "$supplement_cache" "$today" <<'PY'
@@ -183,7 +188,7 @@ def rate_for(model):
             )
     return None
 
-totals = [0.0, 0.0, 0, 0]
+totals = [0.0, 0.0, 0, 0, 0.0, 0]
 def local_day(raw):
     try:
         parsed = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
@@ -195,6 +200,7 @@ with open(csv_path, newline="") as file:
     rows = list(csv.DictReader(file))
 available_days = [local_day(row.get("Date") or "") for row in rows if row.get("Date")]
 display_day = today if today in available_days else max(available_days, default=today)
+yesterday_day = (datetime.date.fromisoformat(display_day) - datetime.timedelta(days=1)).isoformat()
 for row in rows:
         try:
             values = [int((row.get(key) or "0").replace(",", "")) for key in (
@@ -212,13 +218,16 @@ for row in rows:
         if local_day(row.get("Date") or "") == display_day:
             totals[0] += cost
             totals[2] += tokens
-print(f"{totals[0]:.6f} {totals[1]:.6f} {totals[2]} {totals[3]}", end="")
+        if local_day(row.get("Date") or "") == yesterday_day:
+            totals[4] += cost
+            totals[5] += tokens
+print(f"{totals[0]:.6f} {totals[1]:.6f} {totals[2]} {totals[3]} {totals[4]:.6f} {totals[5]}", end="")
 PY
     rm -f "$config" "$csv_file"
 }
 
 claude() {
-    local file token body session weekly today_cost month_cost today_tokens month_tokens
+    local file token body session weekly today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
     file=$HOME/.claude/.credentials.json
     [[ -r "$file" ]] || return
     token=$(jq -r '.claudeAiOauth.accessToken // empty' "$file")
@@ -226,13 +235,13 @@ claude() {
     body=$(request "$token" https://api.anthropic.com/api/oauth/usage GET 'Accept: application/json' 'anthropic-beta: oauth-2025-04-20' 'User-Agent: claude-code/2.1.69')
     session=$(jq -r '.five_hour.utilization // empty' <<< "$body")
     weekly=$(jq -r '.seven_day.utilization // empty' <<< "$body")
-    read -r today_cost month_cost today_tokens month_tokens <<< "$(claude_spend)"
-    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens"
-    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens"
+    read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(claude_spend)"
+    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
+    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
 }
 
 codex() {
-    local file token account body session weekly today_cost month_cost today_tokens month_tokens
+    local file token account body session weekly today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
     file=$HOME/.codex/auth.json
     [[ -r "$file" ]] || file=$HOME/.config/codex/auth.json
     [[ -r "$file" ]] || return
@@ -242,15 +251,15 @@ codex() {
     body=$(request "$token" https://chatgpt.com/backend-api/wham/usage GET 'Accept: application/json' "ChatGPT-Account-Id: $account")
     session=$(jq -r '.rate_limit.primary_window.used_percent // empty' <<< "$body")
     weekly=$(jq -r '.rate_limit.secondary_window.used_percent // empty' <<< "$body")
-    read -r today_cost month_cost today_tokens month_tokens <<< "$(codex_spend)"
-    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens"
-    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens"
+    read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(codex_spend)"
+    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
+    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
 }
 
 cursor() {
     command -v sqlite3 >/dev/null || return
     command -v python >/dev/null || return
-    local file token body total auto api today_cost month_cost today_tokens month_tokens
+    local file token body total auto api today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
     for file in "${XDG_CONFIG_HOME:-$HOME/.config}/Cursor/User/globalStorage/state.vscdb" "${XDG_CONFIG_HOME:-$HOME/.config}/cursor/User/globalStorage/state.vscdb"; do
         [[ -r "$file" ]] && break
     done
@@ -261,10 +270,10 @@ cursor() {
     total=$(jq -r '.planUsage.totalPercentUsed // empty' <<< "$body")
     auto=$(jq -r '.planUsage.autoPercentUsed // empty' <<< "$body")
     api=$(jq -r '.planUsage.apiPercentUsed // empty' <<< "$body")
-    read -r today_cost month_cost today_tokens month_tokens <<< "$(cursor_spend "$token")"
-    [[ "$total" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Total "$total" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens"
-    [[ "$auto" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Auto "$auto" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens"
-    [[ "$api" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor API "$api" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens"
+    read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(cursor_spend "$token")"
+    [[ "$total" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Total "$total" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
+    [[ "$auto" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Auto "$auto" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
+    [[ "$api" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor API "$api" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
 }
 
 opencode() {

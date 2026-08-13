@@ -89,7 +89,7 @@ Item {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: providerUsage.modelData.used + "%"
+                    text: providerUsage.modelData.remaining + "%"
                     color: Local.Theme.secondaryText
                     font.family: Local.Theme.font
                     font.pixelSize: 12

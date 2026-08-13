@@ -15,6 +15,7 @@ Item {
     property bool showSeconds: false
     property bool showTray: true
     property bool showWorkspaces: true
+    property bool showWindowTitle: true
     property bool showAudio: true
     property bool showBrightness: true
     property bool showBattery: true
@@ -46,7 +47,7 @@ Item {
     readonly property string defaultPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings.default"
 
     function save() {
-        saveProcess.command = ["sh", "-c", "mkdir -p \"$(dirname \"$1\")\" && printf 'barRadius=%s\\npillRadius=%s\\nnotchMode=%s\\nshowDate=%s\\nshowTime=%s\\nshowSeconds=%s\\nshowTray=%s\\nshowWorkspaces=%s\\nshowAudio=%s\\nshowBrightness=%s\\nshowBattery=%s\\nshowControlCenter=%s\\nshowCpu=%s\\nshowMemory=%s\\nshowTemperature=%s\\nshowNetwork=%s\\ntemperatureUnit=%s\\nnetworkMode=%s\\nmediaPanelSize=%s\\nclipboardPanelSize=%s\\nlauncherPanelSize=%s\\nwallpaperPanelSize=%s\\nthemePanelSize=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" \"$8\" \"$9\" \"${10}\" \"${11}\" \"${12}\" \"${13}\" \"${14}\" \"${15}\" \"${16}\" \"${17}\" \"${18}\" \"${19}\" \"${20}\" \"${21}\" \"${22}\" \"${23}\" \"${24}\" > \"$1\"", "pill-settings", path, barRadius, pillRadius, notchMode ? "true" : "false", showDate ? "true" : "false", showTime ? "true" : "false", showSeconds ? "true" : "false", showTray ? "true" : "false", showWorkspaces ? "true" : "false", showAudio ? "true" : "false", showBrightness ? "true" : "false", showBattery ? "true" : "false", showControlCenter ? "true" : "false", showCpu ? "true" : "false", showMemory ? "true" : "false", showTemperature ? "true" : "false", showNetwork ? "true" : "false", temperatureUnit, networkMode, mediaPanelSize, clipboardPanelSize, launcherPanelSize, wallpaperPanelSize, themePanelSize]
+        saveProcess.command = ["sh", "-c", "mkdir -p \"$(dirname \"$1\")\" && printf 'barRadius=%s\\npillRadius=%s\\nnotchMode=%s\\nshowDate=%s\\nshowTime=%s\\nshowSeconds=%s\\nshowTray=%s\\nshowWorkspaces=%s\\nshowAudio=%s\\nshowBrightness=%s\\nshowBattery=%s\\nshowControlCenter=%s\\nshowCpu=%s\\nshowMemory=%s\\nshowTemperature=%s\\nshowNetwork=%s\\ntemperatureUnit=%s\\nnetworkMode=%s\\nmediaPanelSize=%s\\nclipboardPanelSize=%s\\nlauncherPanelSize=%s\\nwallpaperPanelSize=%s\\nthemePanelSize=%s\\nshowWindowTitle=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" \"$8\" \"$9\" \"${10}\" \"${11}\" \"${12}\" \"${13}\" \"${14}\" \"${15}\" \"${16}\" \"${17}\" \"${18}\" \"${19}\" \"${20}\" \"${21}\" \"${22}\" \"${23}\" \"${24}\" \"${25}\" > \"$1\"", "pill-settings", path, barRadius, pillRadius, notchMode ? "true" : "false", showDate ? "true" : "false", showTime ? "true" : "false", showSeconds ? "true" : "false", showTray ? "true" : "false", showWorkspaces ? "true" : "false", showAudio ? "true" : "false", showBrightness ? "true" : "false", showBattery ? "true" : "false", showControlCenter ? "true" : "false", showCpu ? "true" : "false", showMemory ? "true" : "false", showTemperature ? "true" : "false", showNetwork ? "true" : "false", temperatureUnit, networkMode, mediaPanelSize, clipboardPanelSize, launcherPanelSize, wallpaperPanelSize, themePanelSize, showWindowTitle ? "true" : "false"]
         saveProcess.running = true
     }
 
@@ -75,6 +76,7 @@ Item {
                 if (pair[0] === "showSeconds") settings.showSeconds = pair[1] === "true"
                 if (pair[0] === "showTray") settings.showTray = pair[1] !== "false"
                 if (pair[0] === "showWorkspaces") settings.showWorkspaces = pair[1] !== "false"
+                if (pair[0] === "showWindowTitle") settings.showWindowTitle = pair[1] !== "false"
                 if (pair[0] === "showAudio") settings.showAudio = pair[1] !== "false"
                 if (pair[0] === "showBrightness") settings.showBrightness = pair[1] !== "false"
                 if (pair[0] === "showBattery") settings.showBattery = pair[1] !== "false"

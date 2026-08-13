@@ -24,6 +24,7 @@ PanelWindow {
     property int pillHeight: 30
     property date now: new Date()
     property string brightness: "--"
+    readonly property string activeWindowTitle: Hyprland.activeToplevel?.title || "Desktop"
     readonly property bool showMonitorStatus: Settings.showCpu || Settings.showMemory || Settings.showTemperature || Settings.showNetwork
     readonly property bool showSystemStatus: root.showMonitorStatus || Settings.showAiUsage
 
@@ -193,6 +194,23 @@ PanelWindow {
                     }
                 }
             }
+
+            Pill {
+                visible: Settings.showWindowTitle
+                width: Math.min(240, windowTitle.implicitWidth + 24)
+
+                Text {
+                    id: windowTitle
+                    anchors.centerIn: parent
+                    width: parent.width - 24
+                    text: root.activeWindowTitle
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                }
+            }
         }
 
         Row {
@@ -247,7 +265,7 @@ PanelWindow {
             }
 
             Pill {
-                visible: Settings.showAudio || Settings.showBrightness
+                visible: Settings.showAudio || Settings.showBrightness || (Settings.showBattery && UPower.displayDevice !== null)
                 width: systemRow.width + 22
 
                 Row {
@@ -305,20 +323,14 @@ PanelWindow {
                             }
                         }
                     }
-                }
-            }
 
-            Pill {
-                visible: Settings.showBattery && UPower.displayDevice !== null
-                width: batteryText.width + 22
-
-                Text {
-                    id: batteryText
-                    anchors.centerIn: parent
-                    text: "󰁹 " + Math.round((UPower.displayDevice?.percentage ?? 0) * 100) + "%"
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: 12
+                    Text {
+                        visible: Settings.showBattery && UPower.displayDevice !== null
+                        text: "󰁹 " + Math.round((UPower.displayDevice?.percentage ?? 0) * 100) + "%"
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                    }
                 }
             }
 
