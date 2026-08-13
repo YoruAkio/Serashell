@@ -8,9 +8,12 @@ ShellRoot {
 
     property bool controlCenterLoaded: false
     property bool settingsLoaded: false
+    property int aiUsageAnchorX: 0
+    property string settingsPage: "bar"
 
     Pill.Bar {}
     Pill.Pill {}
+    Pill.AiUsagePanel { id: aiUsagePanel; anchorX: root.aiUsageAnchorX }
 
     Loader {
         id: controlCenterLoader
@@ -20,11 +23,21 @@ ShellRoot {
         }
     }
 
+    IpcHandler {
+        target: "aiUsage"
+        function toggle(anchorX: int): void {
+            root.aiUsageAnchorX = anchorX
+            aiUsagePanel.anchorX = anchorX
+            aiUsagePanel.toggle()
+        }
+        function refresh(): void { aiUsagePanel.refresh(true) }
+    }
+
     Loader {
         id: settingsLoader
         active: root.settingsLoaded
         sourceComponent: Component {
-            Pill.SettingsWindow { onDismissed: root.settingsLoaded = false }
+            Pill.SettingsWindow { page: root.settingsPage; onDismissed: root.settingsLoaded = false }
         }
     }
 
@@ -47,6 +60,15 @@ ShellRoot {
                 settingsLoader.item.close()
             else
                 root.settingsLoaded = true
+        }
+        function open(page: string): void {
+            root.settingsPage = page
+            if (settingsLoader.item) {
+                settingsLoader.item.page = page
+                settingsLoader.item.open = true
+            } else {
+                root.settingsLoaded = true
+            }
         }
     }
 

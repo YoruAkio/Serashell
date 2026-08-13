@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Controls
 import Quickshell
 import "Singletons" as Local
@@ -24,6 +25,19 @@ FloatingWindow {
     function close() {
         open = false
         dismissed()
+    }
+
+    function aiUsageVisible(provider, target) {
+        const providers = target === "bar" ? Local.Settings.aiUsageBarProviders : Local.Settings.aiUsagePanelProviders
+        return providers.split(",").includes(provider)
+    }
+
+    function setAiUsageVisible(provider, target, enabled) {
+        const property = target === "bar" ? "aiUsageBarProviders" : "aiUsagePanelProviders"
+        const providers = Local.Settings[property].split(",").filter(value => value && value !== provider)
+        if (enabled) providers.push(provider)
+        Local.Settings[property] = providers.join(",")
+        Local.Settings.save()
     }
 
     component SidebarItem: Rectangle {
@@ -173,6 +187,69 @@ FloatingWindow {
         }
     }
 
+    component AiProviderRow: Item {
+        id: providerRow
+        required property string providerId
+        required property string label
+
+        width: parent.width
+        height: 34
+        opacity: Local.Settings.showAiUsage ? 1 : 0.45
+
+        Item {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: 20
+            height: 20
+
+            Image {
+                id: providerIcon
+                anchors.fill: parent
+                source: "assets/" + providerRow.providerId + ".svg"
+                sourceSize: Qt.size(width, height)
+                fillMode: Image.PreserveAspectFit
+                visible: false
+            }
+
+            MultiEffect {
+                anchors.fill: parent
+                source: providerIcon
+                brightness: 1
+                colorization: 1
+                colorizationColor: Local.Theme.secondaryText
+            }
+        }
+
+        Text {
+            anchors.left: parent.left
+            anchors.leftMargin: 32
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.label
+            color: Local.Theme.text
+            font.family: Local.Theme.font
+            font.pixelSize: 14
+            font.bold: true
+        }
+
+        Row {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 18
+
+            Components.Toggle {
+                interactive: Local.Settings.showAiUsage
+                checked: root.aiUsageVisible(parent.parent.providerId, "bar")
+                onToggled: value => root.setAiUsageVisible(parent.parent.providerId, "bar", value)
+            }
+
+            Components.Toggle {
+                interactive: Local.Settings.showAiUsage
+                checked: root.aiUsageVisible(parent.parent.providerId, "panel")
+                onToggled: value => root.setAiUsageVisible(parent.parent.providerId, "panel", value)
+            }
+        }
+    }
+
     MouseArea { anchors.fill: parent; onClicked: root.close() }
 
     FocusScope {
@@ -281,6 +358,7 @@ FloatingWindow {
                     }
 
                     SidebarChild { visible: root.barExpanded; icon: "󰌷"; label: "Bar elements"; selected: root.page === "bar-elements"; onActivated: root.page = "bar-elements" }
+                    SidebarChild { visible: root.barExpanded; icon: "󰊤"; label: "AI Usage"; selected: root.page === "ai-usage"; onActivated: root.page = "ai-usage" }
                     SidebarChild { visible: root.barExpanded; icon: "󰃭"; label: "Date & Time"; selected: root.page === "clock"; onActivated: root.page = "clock" }
                     SidebarChild { visible: root.barExpanded; icon: "󰍛"; label: "System status"; selected: root.page === "system"; onActivated: root.page = "system" }
 
@@ -616,6 +694,48 @@ FloatingWindow {
                     SettingRow { label: "Brightness"; description: "Display brightness control"; enabled: true; checked: Local.Settings.showBrightness; onToggled: value => { Local.Settings.showBrightness = value; Local.Settings.save() } }
                     SettingRow { label: "Battery"; description: "Display battery percentage"; enabled: true; checked: Local.Settings.showBattery; onToggled: value => { Local.Settings.showBattery = value; Local.Settings.save() } }
                     SettingRow { label: "Control centre"; description: "Display the quick controls button"; enabled: true; checked: Local.Settings.showControlCenter; onToggled: value => { Local.Settings.showControlCenter = value; Local.Settings.save() } }
+                }
+
+                Column {
+                    visible: root.page === "ai-usage"
+                    width: parent.width
+                    spacing: 8
+
+                    Text { text: "AI Usage"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
+                    Text { text: "Choose where each provider appears"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
+                    SettingRow { label: "Show AI Usage"; description: "Display AI usage controls and provider data"; enabled: true; checked: Local.Settings.showAiUsage; onToggled: value => { Local.Settings.showAiUsage = value; Local.Settings.save() } }
+
+                    Item {
+                        width: parent.width
+                        height: 34
+                        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Refresh interval"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14; font.bold: true }
+                        Row {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 6
+                            Components.ValueStepper { value: Local.Settings.aiUsageRefreshMinutes; minimum: 1; maximum: 60; onChanged: value => { Local.Settings.aiUsageRefreshMinutes = value; Local.Settings.save() } }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "min"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 12 }
+                        }
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 20
+                        Row {
+                            anchors.right: parent.right
+                            spacing: 18
+                            Item { width: 48; height: 20; Text { anchors.centerIn: parent; text: "Bar"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 11; font.bold: true } }
+                            Item { width: 48; height: 20; Text { anchors.centerIn: parent; text: "Panel"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 11; font.bold: true } }
+                        }
+                    }
+
+                    AiProviderRow { providerId: "claude"; label: "Claude" }
+                    AiProviderRow { providerId: "codex"; label: "Codex" }
+                    AiProviderRow { providerId: "cursor"; label: "Cursor" }
+                    AiProviderRow { providerId: "antigravity"; label: "Antigravity" }
+                    AiProviderRow { providerId: "copilot"; label: "GitHub Copilot" }
+                    AiProviderRow { providerId: "grok"; label: "Grok" }
+                    AiProviderRow { providerId: "opencode"; label: "OpenCode" }
                 }
 
                 Column {

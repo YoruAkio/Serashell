@@ -7,6 +7,7 @@ import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
 import Quickshell.Widgets
 import "Singletons"
+import "components" as Components
 
 PanelWindow {
     id: root
@@ -23,12 +24,13 @@ PanelWindow {
     property int pillHeight: 30
     property date now: new Date()
     property string brightness: "--"
-    readonly property bool showSystemStatus: Settings.showCpu || Settings.showMemory || Settings.showTemperature || Settings.showNetwork
+    readonly property bool showMonitorStatus: Settings.showCpu || Settings.showMemory || Settings.showTemperature || Settings.showNetwork
+    readonly property bool showSystemStatus: root.showMonitorStatus || Settings.showAiUsage
 
     Binding {
         target: SystemMonitor
         property: "barActive"
-        value: root.showSystemStatus
+        value: root.showMonitorStatus
     }
 
     function networkSpeed(value) {
@@ -103,6 +105,7 @@ PanelWindow {
             font.pixelSize: 12
         }
     }
+
 
     Item {
         anchors.fill: parent
@@ -235,6 +238,10 @@ PanelWindow {
                         spacing: 4
                         StatusMetric { visible: Settings.networkMode !== "upload"; icon: "󰇚"; value: root.networkSpeed(SystemMonitor.download) }
                         StatusMetric { visible: Settings.networkMode !== "download"; icon: "󰕒"; value: root.networkSpeed(SystemMonitor.upload) }
+                    }
+
+                    Components.AiUsage {
+                        visible: Settings.showAiUsage
                     }
                 }
             }

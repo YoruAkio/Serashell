@@ -23,6 +23,18 @@ Item {
     property bool showMemory: true
     property bool showTemperature: true
     property bool showNetwork: true
+    property bool showAiUsage: true
+    property string aiUsageProviders: "claude,codex,cursor,antigravity,copilot,grok,opencode"
+    property string aiUsageBarProviders: aiUsageProviders
+    property string aiUsagePanelProviders: aiUsageProviders
+    property int aiUsageRefreshMinutes: 5
+    readonly property string activeAiUsageProviders: {
+        const providers = []
+        const enabled = (aiUsageBarProviders + "," + aiUsagePanelProviders).split(",")
+        for (let i = 0; i < enabled.length; i++)
+            if (enabled[i] && !providers.includes(enabled[i])) providers.push(enabled[i])
+        return providers.join(",")
+    }
     property string temperatureUnit: "C"
     property string networkMode: "download"
     property int mediaPanelSize: 100
@@ -71,6 +83,11 @@ Item {
                 if (pair[0] === "showMemory") settings.showMemory = pair[1] !== "false"
                 if (pair[0] === "showTemperature") settings.showTemperature = pair[1] !== "false"
                 if (pair[0] === "showNetwork") settings.showNetwork = pair[1] !== "false"
+                if (pair[0] === "showAiUsage") settings.showAiUsage = pair[1] !== "false"
+                if (pair[0] === "aiUsageProviders") settings.aiUsageProviders = pair[1]
+                if (pair[0] === "aiUsageBarProviders") settings.aiUsageBarProviders = pair[1]
+                if (pair[0] === "aiUsagePanelProviders") settings.aiUsagePanelProviders = pair[1]
+                if (pair[0] === "aiUsageRefreshMinutes") settings.aiUsageRefreshMinutes = Math.max(1, Math.min(60, Number(pair[1]) || 5))
                 if (pair[0] === "temperatureUnit") settings.temperatureUnit = pair[1] === "F" ? "F" : "C"
                 if (pair[0] === "networkMode") settings.networkMode = ["download", "upload", "both"].includes(pair[1]) ? pair[1] : "download"
                 if (pair[0] === "mediaPanelSize") settings.mediaPanelSize = Math.max(50, Math.min(200, Number(pair[1]) || 100))
@@ -90,6 +107,13 @@ Item {
         onFileChanged: reload()
     }
 
-    Process { id: saveProcess }
+    Process {
+        id: saveProcess
+        onExited: {
+            aiSaveProcess.command = ["sh", "-c", "tmp=$(mktemp); awk '!/^showAiUsage=|^aiUsageProviders=|^aiUsageBarProviders=|^aiUsagePanelProviders=|^aiUsageRefreshMinutes=/' \"$1\" > \"$tmp\" && printf 'showAiUsage=%s\\naiUsageProviders=%s\\naiUsageBarProviders=%s\\naiUsagePanelProviders=%s\\naiUsageRefreshMinutes=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" >> \"$tmp\" && mv \"$tmp\" \"$1\"", "ai-usage-settings", settings.path, settings.showAiUsage ? "true" : "false", settings.activeAiUsageProviders, settings.aiUsageBarProviders, settings.aiUsagePanelProviders, settings.aiUsageRefreshMinutes]
+            aiSaveProcess.running = true
+        }
+    }
+    Process { id: aiSaveProcess }
     Process { id: resetProcess; onExited: settingsFile.reload() }
 }
