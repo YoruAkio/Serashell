@@ -37,7 +37,13 @@ ShellRoot {
         id: settingsLoader
         active: root.settingsLoaded
         sourceComponent: Component {
-            Pill.SettingsWindow { page: root.settingsPage; onDismissed: root.settingsLoaded = false }
+            Pill.SettingsWindow {
+                page: root.settingsPage
+                onDismissed: {
+                    root.settingsPage = "bar"
+                    root.settingsLoaded = false
+                }
+            }
         }
     }
 
@@ -58,8 +64,10 @@ ShellRoot {
         function toggle(): void {
             if (settingsLoader.item)
                 settingsLoader.item.close()
-            else
+            else {
+                root.settingsPage = "bar"
                 root.settingsLoaded = true
+            }
         }
         function open(page: string): void {
             root.settingsPage = page

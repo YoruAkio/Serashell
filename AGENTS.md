@@ -63,6 +63,7 @@ Then use `Components.Toggle`, `Components.Slider`, `Components.Dropdown`, or `Co
 - The settings window is named **Serashell**.
 - Keep settings pages in the sidebar; do not turn settings into an island-morph panel.
 - Use a `Dropdown` for mutually exclusive styles such as Dynamic Island versus macOS Notch, not a toggle.
+- Keep settings lists on a consistent 40px row height with 8px between rows for toggles, sliders, and value steppers. Dropdown rows may use 42px to accommodate the menu control, but must not introduce larger page-specific gaps.
 - Add settings pages and persistent properties only when they have a working consumer in the shell.
 
 ## Validation

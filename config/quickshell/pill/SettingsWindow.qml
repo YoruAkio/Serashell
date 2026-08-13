@@ -18,8 +18,10 @@ FloatingWindow {
     property bool open: true
     property string page: "bar"
     property bool barExpanded: true
-    property bool pillExpanded: false
     property bool islandStyleMenuOpen: false
+    readonly property int settingRowHeight: 40
+    readonly property int settingSpacing: 8
+    readonly property int dropdownRowHeight: 42
     signal dismissed()
 
     function close() {
@@ -123,7 +125,7 @@ FloatingWindow {
         signal toggled(bool value)
 
         width: parent.width
-        height: 44
+        height: root.settingRowHeight
         opacity: enabled ? 1 : 0.45
 
         Text {
@@ -160,7 +162,7 @@ FloatingWindow {
         required property string sizeProperty
 
         width: parent.width
-        height: 42
+        height: root.settingRowHeight
 
         function setSize(value) {
             Local.Settings[sizeProperty] = value
@@ -199,8 +201,8 @@ FloatingWindow {
         Item {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: 20
-            height: 20
+            width: 22
+            height: 22
 
             Image {
                 id: providerIcon
@@ -279,11 +281,11 @@ FloatingWindow {
             Rectangle {
                 z: 1
                 anchors.right: parent.right
-                anchors.rightMargin: 14
+                anchors.rightMargin: 10
                 anchors.top: parent.top
-                anchors.topMargin: 14
-                width: 32
-                height: 32
+                anchors.topMargin: 10
+                width: 26
+                height: 26
                 radius: height / 2
                 color: Local.Theme.highlight
 
@@ -292,7 +294,7 @@ FloatingWindow {
                     text: "󰅖"
                     color: Local.Theme.background
                     font.family: Local.Theme.font
-                    font.pixelSize: 15
+                    font.pixelSize: 13
                     font.bold: true
                 }
 
@@ -357,7 +359,6 @@ FloatingWindow {
                         onActivated: { root.page = "bar"; root.barExpanded = !root.barExpanded }
                     }
 
-                    SidebarChild { visible: root.barExpanded; icon: "󰌷"; label: "Bar elements"; selected: root.page === "bar-elements"; onActivated: root.page = "bar-elements" }
                     SidebarChild { visible: root.barExpanded; icon: "󰊤"; label: "AI Usage"; selected: root.page === "ai-usage"; onActivated: root.page = "ai-usage" }
                     SidebarChild { visible: root.barExpanded; icon: "󰃭"; label: "Date & Time"; selected: root.page === "clock"; onActivated: root.page = "clock" }
                     SidebarChild { visible: root.barExpanded; icon: "󰍛"; label: "System status"; selected: root.page === "system"; onActivated: root.page = "system" }
@@ -367,12 +368,11 @@ FloatingWindow {
                         label: "Pill Settings"
                         selected: root.page === "pill"
                         expandable: true
-                        expanded: root.pillExpanded
-                        onActivated: { root.page = "pill"; root.pillExpanded = !root.pillExpanded }
+                        expanded: true
+                        onActivated: root.page = "pill"
                     }
 
-                    SidebarChild { visible: root.pillExpanded; icon: "󰘔"; label: "Pill style"; selected: root.page === "pill-style"; onActivated: root.page = "pill-style" }
-                    SidebarChild { visible: root.pillExpanded; icon: "󰧑"; label: "Panel sizes"; selected: root.page === "panel-sizes"; onActivated: root.page = "panel-sizes" }
+                    SidebarChild { icon: "󰧑"; label: "Panel sizes"; selected: root.page === "panel-sizes"; onActivated: root.page = "panel-sizes" }
                 }
 
                 Row {
@@ -461,15 +461,15 @@ FloatingWindow {
                     x: 20
                     y: 4
                     width: contentViewport.width - 40
-                    height: root.page === "bar-elements" ? 625 : root.page === "panel-sizes" ? 340 : contentViewport.height - 40
+                    height: root.page === "bar" ? 480 : root.page === "panel-sizes" ? 340 : contentViewport.height - 40
 
                 Column {
-                    visible: root.page === "pill" || root.page === "pill-style"
+                    visible: root.page === "pill"
                     anchors.fill: parent
-                    spacing: 5
+                    spacing: root.settingSpacing
 
                     Text {
-                        text: root.page === "pill-style" ? "Pill style" : "Pill Settings"
+                        text: "Pill Settings"
                         color: Local.Theme.text
                         font.family: Local.Theme.font
                         font.pixelSize: 20
@@ -477,7 +477,7 @@ FloatingWindow {
                     }
 
                     Text {
-                        text: root.page === "pill-style" ? "Choose the center presentation" : "Center island shape"
+                        text: "Center island shape and presentation"
                         color: Local.Theme.muted
                         font.family: Local.Theme.font
                         font.pixelSize: 13
@@ -493,7 +493,7 @@ FloatingWindow {
                             required property int index
                             required property string modelData
                             width: content.width
-                            height: 44
+                            height: root.settingRowHeight
                             readonly property int value: Local.Settings.pillRadius
 
                             function setValue(next) {
@@ -522,10 +522,9 @@ FloatingWindow {
 
                     Item {
                         id: islandStyleRow
-                        visible: root.page === "pill-style"
 
                         width: parent.width
-                        height: 44
+                        height: root.dropdownRowHeight
 
                         Text {
                             anchors.left: parent.left
@@ -667,33 +666,20 @@ FloatingWindow {
                 Column {
                     visible: root.page === "bar"
                     width: parent.width
-                    spacing: 8
+                    spacing: root.settingSpacing
 
                     Text { text: "Bar Settings"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
-                    Text { text: "Bar shape and placement"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
+                    Text { text: "Bar shape and elements"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
                     Item {
                         width: parent.width
-                        height: 34
+                        height: root.settingRowHeight
                         Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Bar roundness"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14 }
                         Components.ValueStepper { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; value: Local.Settings.barRadius; maximum: 15; onChanged: value => { Local.Settings.barRadius = value; Local.Settings.save() } }
                     }
-                }
-
-                Column {
-                    visible: root.page === "bar-elements"
-                    width: parent.width
-                    spacing: 8
-
-                    Text { text: "Bar elements"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
-                    Text { text: "Choose which controls appear in the top bar"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
 
                     SettingRow { label: "System tray"; description: "Display application status icons"; enabled: true; checked: Local.Settings.showTray; onToggled: value => { Local.Settings.showTray = value; Local.Settings.save() } }
                     SettingRow { label: "Workspaces"; description: "Display Hyprland workspace buttons"; enabled: true; checked: Local.Settings.showWorkspaces; onToggled: value => { Local.Settings.showWorkspaces = value; Local.Settings.save() } }
                     SettingRow { label: "Window name"; description: "Display the active window title"; enabled: true; checked: Local.Settings.showWindowTitle; onToggled: value => { Local.Settings.showWindowTitle = value; Local.Settings.save() } }
-                    SettingRow { label: "CPU usage"; description: "Display processor load"; enabled: true; checked: Local.Settings.showCpu; onToggled: value => { Local.Settings.showCpu = value; Local.Settings.save() } }
-                    SettingRow { label: "RAM usage"; description: "Display memory use"; enabled: true; checked: Local.Settings.showMemory; onToggled: value => { Local.Settings.showMemory = value; Local.Settings.save() } }
-                    SettingRow { label: "Temperature"; description: "Display system temperature"; enabled: true; checked: Local.Settings.showTemperature; onToggled: value => { Local.Settings.showTemperature = value; Local.Settings.save() } }
-                    SettingRow { label: "Network speed"; description: "Display network throughput"; enabled: true; checked: Local.Settings.showNetwork; onToggled: value => { Local.Settings.showNetwork = value; Local.Settings.save() } }
                     SettingRow { label: "Sound"; description: "Display volume and mute control"; enabled: true; checked: Local.Settings.showAudio; onToggled: value => { Local.Settings.showAudio = value; Local.Settings.save() } }
                     SettingRow { label: "Brightness"; description: "Display brightness control"; enabled: true; checked: Local.Settings.showBrightness; onToggled: value => { Local.Settings.showBrightness = value; Local.Settings.save() } }
                     SettingRow { label: "Battery"; description: "Display battery percentage"; enabled: true; checked: Local.Settings.showBattery; onToggled: value => { Local.Settings.showBattery = value; Local.Settings.save() } }
@@ -703,7 +689,7 @@ FloatingWindow {
                 Column {
                     visible: root.page === "ai-usage"
                     width: parent.width
-                    spacing: 8
+                    spacing: root.settingSpacing
 
                     Text { text: "AI Usage"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
                     Text { text: "Choose where each provider appears"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
@@ -711,7 +697,7 @@ FloatingWindow {
 
                     Item {
                         width: parent.width
-                        height: 34
+                        height: root.settingRowHeight
                         Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Refresh interval"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14; font.bold: true }
                         Row {
                             anchors.right: parent.right
@@ -733,19 +719,23 @@ FloatingWindow {
                         }
                     }
 
-                    AiProviderRow { providerId: "claude"; label: "Claude" }
-                    AiProviderRow { providerId: "codex"; label: "Codex" }
-                    AiProviderRow { providerId: "cursor"; label: "Cursor" }
-                    AiProviderRow { providerId: "antigravity"; label: "Antigravity" }
-                    AiProviderRow { providerId: "copilot"; label: "GitHub Copilot" }
-                    AiProviderRow { providerId: "grok"; label: "Grok" }
-                    AiProviderRow { providerId: "opencode"; label: "OpenCode" }
+                    Column {
+                        width: parent.width
+                        spacing: 2
+                        AiProviderRow { providerId: "claude"; label: "Claude" }
+                        AiProviderRow { providerId: "codex"; label: "Codex" }
+                        AiProviderRow { providerId: "cursor"; label: "Cursor" }
+                        AiProviderRow { providerId: "antigravity"; label: "Antigravity" }
+                        AiProviderRow { providerId: "copilot"; label: "GitHub Copilot" }
+                        AiProviderRow { providerId: "grok"; label: "Grok" }
+                        AiProviderRow { providerId: "opencode"; label: "OpenCode" }
+                    }
                 }
 
                 Column {
                     visible: root.page === "panel-sizes"
                     width: parent.width
-                    spacing: 10
+                    spacing: root.settingSpacing
 
                     Text { text: "Panel sizes"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
                     Text { text: "Scale each panel from its default size"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
@@ -759,7 +749,7 @@ FloatingWindow {
                 Column {
                     visible: root.page === "clock"
                     anchors.fill: parent
-                    spacing: 14
+                    spacing: root.settingSpacing
 
                     Text {
                         text: "Date & Time"
@@ -776,48 +766,36 @@ FloatingWindow {
                         font.pixelSize: 13
                     }
 
-                    Rectangle {
-                        width: parent.width
-                        height: 148
-                        radius: 18
-                        color: "transparent"
+                    SettingRow {
+                        label: "Show date"
+                        description: "Display day and month"
+                        enabled: true
+                        checked: Local.Settings.showDate
+                        onToggled: value => {
+                            Local.Settings.showDate = value
+                            Local.Settings.save()
+                        }
+                    }
 
-                        Column {
-                            anchors.fill: parent
-                            spacing: 8
+                    SettingRow {
+                        label: "Show time"
+                        description: "Display the current time"
+                        enabled: true
+                        checked: Local.Settings.showTime
+                        onToggled: value => {
+                            Local.Settings.showTime = value
+                            Local.Settings.save()
+                        }
+                    }
 
-                            SettingRow {
-                                label: "Show date"
-                                description: "Display day and month"
-                                enabled: true
-                                checked: Local.Settings.showDate
-                                onToggled: value => {
-                                    Local.Settings.showDate = value
-                                    Local.Settings.save()
-                                }
-                            }
-
-                            SettingRow {
-                                label: "Show time"
-                                description: "Display the current time"
-                                enabled: true
-                                checked: Local.Settings.showTime
-                                onToggled: value => {
-                                    Local.Settings.showTime = value
-                                    Local.Settings.save()
-                                }
-                            }
-
-                            SettingRow {
-                                label: "Show seconds"
-                                description: "Include seconds beside the time"
-                                enabled: Local.Settings.showTime
-                                checked: Local.Settings.showSeconds
-                                onToggled: value => {
-                                    Local.Settings.showSeconds = value
-                                    Local.Settings.save()
-                                }
-                            }
+                    SettingRow {
+                        label: "Show seconds"
+                        description: "Include seconds beside the time"
+                        enabled: Local.Settings.showTime
+                        checked: Local.Settings.showSeconds
+                        onToggled: value => {
+                            Local.Settings.showSeconds = value
+                            Local.Settings.save()
                         }
                     }
                 }
@@ -825,7 +803,7 @@ FloatingWindow {
                 Column {
                     visible: root.page === "system"
                     anchors.fill: parent
-                    spacing: 14
+                    spacing: root.settingSpacing
 
                     Text {
                         text: "System status"
@@ -842,27 +820,15 @@ FloatingWindow {
                         font.pixelSize: 13
                     }
 
-                    Rectangle {
-                        width: parent.width
-                        height: 200
-                        radius: 18
-                        color: "transparent"
-
-                        Column {
-                            anchors.fill: parent
-                            spacing: 8
-
-                            SettingRow { label: "CPU usage"; description: "Display processor load"; enabled: true; checked: Local.Settings.showCpu; onToggled: value => { Local.Settings.showCpu = value; Local.Settings.save() } }
-                            SettingRow { label: "RAM usage"; description: "Display memory use"; enabled: true; checked: Local.Settings.showMemory; onToggled: value => { Local.Settings.showMemory = value; Local.Settings.save() } }
-                            SettingRow { label: "Temperature"; description: "Display system temperature"; enabled: true; checked: Local.Settings.showTemperature; onToggled: value => { Local.Settings.showTemperature = value; Local.Settings.save() } }
-                            SettingRow { label: "Network speed"; description: "Display network throughput"; enabled: true; checked: Local.Settings.showNetwork; onToggled: value => { Local.Settings.showNetwork = value; Local.Settings.save() } }
-                        }
-                    }
+                    SettingRow { label: "CPU usage"; description: "Display processor load"; enabled: true; checked: Local.Settings.showCpu; onToggled: value => { Local.Settings.showCpu = value; Local.Settings.save() } }
+                    SettingRow { label: "RAM usage"; description: "Display memory use"; enabled: true; checked: Local.Settings.showMemory; onToggled: value => { Local.Settings.showMemory = value; Local.Settings.save() } }
+                    SettingRow { label: "Temperature"; description: "Display system temperature"; enabled: true; checked: Local.Settings.showTemperature; onToggled: value => { Local.Settings.showTemperature = value; Local.Settings.save() } }
+                    SettingRow { label: "Network speed"; description: "Display network throughput"; enabled: true; checked: Local.Settings.showNetwork; onToggled: value => { Local.Settings.showNetwork = value; Local.Settings.save() } }
 
                     Item {
                         z: temperatureDropdown.open ? 1 : 0
                         width: parent.width
-                        height: 34
+                        height: root.dropdownRowHeight
 
                         Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Temperature unit"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14 }
                         Components.Dropdown { id: temperatureDropdown; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; options: [{ label: "Celsius (°C)" }, { label: "Fahrenheit (°F)" }]; currentIndex: Local.Settings.temperatureUnit === "F" ? 1 : 0; onSelected: index => { Local.Settings.temperatureUnit = index === 1 ? "F" : "C"; Local.Settings.save() } }
@@ -870,7 +836,7 @@ FloatingWindow {
 
                     Item {
                         width: parent.width
-                        height: 34
+                        height: root.dropdownRowHeight
 
                         Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Network display"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14 }
                         Components.Dropdown { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; options: [{ label: "Download" }, { label: "Upload" }, { label: "Both" }]; currentIndex: Local.Settings.networkMode === "download" ? 0 : Local.Settings.networkMode === "upload" ? 1 : 2; onSelected: index => { Local.Settings.networkMode = ["download", "upload", "both"][index]; Local.Settings.save() } }
