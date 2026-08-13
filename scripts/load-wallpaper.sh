@@ -4,8 +4,17 @@
 
 WALL_DIR="$HOME/.wall"
 CURRENT_FILE="$WALL_DIR/.current"
-DEFAULT_WALLPAPER="$WALL_DIR/KasiaKarate.jpg"
+DEFAULT_FILE="$WALL_DIR/.current.default"
 TARGET_OUTPUTS="eDP-1,HDMI-A-2"
+
+# @note initialize user wallpaper state from the tracked default
+if [ ! -s "$CURRENT_FILE" ]; then
+    if [ ! -s "$DEFAULT_FILE" ]; then
+        echo "No default wallpaper configured" >&2
+        exit 1
+    fi
+    cp "$DEFAULT_FILE" "$CURRENT_FILE"
+fi
 
 # @note get screen resolution for transition position
 get_screen_center() {
@@ -38,21 +47,11 @@ wait_for_swww() {
 
 # @note load wallpaper
 load_wallpaper() {
-    local wallpaper=""
-    
-    if [ -f "$CURRENT_FILE" ] && [ -s "$CURRENT_FILE" ]; then
-        local saved_name=$(cat "$CURRENT_FILE")
-        wallpaper="$WALL_DIR/$saved_name"
-        
-        if [ ! -f "$wallpaper" ]; then
-            wallpaper="$DEFAULT_WALLPAPER"
-        fi
-    else
-        wallpaper="$DEFAULT_WALLPAPER"
-    fi
+    local saved_name=$(cat "$CURRENT_FILE")
+    local wallpaper="$WALL_DIR/$saved_name"
     
     if [ ! -f "$wallpaper" ]; then
-        echo "No wallpaper found"
+        echo "Wallpaper not found: $wallpaper" >&2
         exit 1
     fi
     
