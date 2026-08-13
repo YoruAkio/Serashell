@@ -4,6 +4,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$HOME/.config"
+BACKUP_DIR="$SCRIPT_DIR/backup/backup-$(date '+%M:%H-%d:%m')"
 
 # @note list of folders to link
 FOLDERS=(
@@ -18,8 +19,23 @@ FOLDERS=(
     "Kvantum"
     "scripts"
     "waybar"
-    "zathura"
 )
+
+backup_target() {
+    local source="$1"
+    local target="$2"
+    local name="$3"
+
+    if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
+        return
+    fi
+
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        mkdir -p "$BACKUP_DIR"
+        mv "$target" "$BACKUP_DIR/$name"
+        echo "✓ Backed up $name to $BACKUP_DIR"
+    fi
+}
 
 echo "Setting up dotfile symlinks..."
 echo "Source: $SCRIPT_DIR"
@@ -38,31 +54,23 @@ for folder in "${FOLDERS[@]}"; do
         continue
     fi
     
-    if [ -e "$TARGET" ]; then
-        echo ""
-        echo "📁 $folder already exists at $TARGET"
-        
-        if [ -L "$TARGET" ]; then
-            echo "   (Currently a symlink)"
-        else
-            echo "   (Currently a directory/file)"
-        fi
-        
-        read -p "   Remove and replace with new dotfiles? [y/N]: " -n 1 -r
-        echo
-        
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "   Removing existing $folder..."
-            rm -rf "$TARGET"
-        else
-            echo "   Skipping $folder"
-            continue
-        fi
-    fi
-    
+    backup_target "$SOURCE" "$TARGET" "$folder"
     echo "✓ Linking $folder"
-    ln -s "$SOURCE" "$TARGET"
+    ln -sfn "$SOURCE" "$TARGET"
 done
+
+WALLPAPER_SOURCE="$SCRIPT_DIR/wallpaper"
+WALLPAPER_TARGET="$HOME/.wall"
+
+backup_target "$WALLPAPER_SOURCE" "$WALLPAPER_TARGET" "wallpaper"
+echo "✓ Linking wallpapers"
+ln -sfn "$WALLPAPER_SOURCE" "$WALLPAPER_TARGET"
+
+PILL_SETTINGS="$CONFIG_DIR/quickshell/pill-settings"
+if [ ! -s "$PILL_SETTINGS" ]; then
+    cp "$CONFIG_DIR/quickshell/pill-settings.default" "$PILL_SETTINGS"
+    echo "✓ Initialized pill settings"
+fi
 
 echo ""
 echo "✅ Done! All symlinks created."

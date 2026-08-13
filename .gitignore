@@ -2,3 +2,5 @@ dunst/dunstrc.d/99-theme.conf
 fuzzel/theme.ini
 kitty/theme.conf
 waybar/theme.css
+quickshell/pill-settings
+backup/

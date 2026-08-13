@@ -73,6 +73,26 @@ PanelWindow {
         emojiEntries = []
     }
 
+    function togglePanel(panel) {
+        const alreadyOpen = (panel === "theme" && themePickerOpen)
+                || (panel === "wallpaper" && wallpaperPickerOpen)
+                || (panel === "clipboard" && clipboardPickerOpen)
+                || (panel === "launcher" && launcherOpen)
+                || (panel === "calendar" && calendarOpen)
+                || (panel === "system" && systemOpen)
+                || (panel === "emoji" && emojiPickerOpen)
+        closePanels()
+        if (alreadyOpen)
+            return
+        if (panel === "theme") themePickerOpen = true
+        else if (panel === "wallpaper") wallpaperPickerOpen = true
+        else if (panel === "clipboard") clipboardPickerOpen = true
+        else if (panel === "launcher") launcherOpen = true
+        else if (panel === "calendar") calendarOpen = true
+        else if (panel === "system") systemOpen = true
+        else if (panel === "emoji") emojiPickerOpen = true
+    }
+
     function applyTheme(mode) {
         themeProcess.mode = mode
         themeProcess.running = true
@@ -91,7 +111,7 @@ PanelWindow {
     }
 
     function openWallpaperPicker() {
-        wallpaperPickerOpen = !wallpaperPickerOpen
+        togglePanel("wallpaper")
         if (wallpaperPickerOpen)
             wallpaperProcess.running = true
     }
@@ -166,11 +186,8 @@ PanelWindow {
     }
 
     function openLauncher() {
-        launcherOpen = !launcherOpen
+        togglePanel("launcher")
         if (launcherOpen) {
-            themePickerOpen = false
-            wallpaperPickerOpen = false
-            clipboardPickerOpen = false
             launcherQuery = ""
             launcherIndex = 0
             launcherFocusTimer.restart()
@@ -190,26 +207,21 @@ PanelWindow {
     }
 
     function openCalendar() {
-        calendarOpen = !calendarOpen
+        togglePanel("calendar")
         if (calendarOpen) {
-            systemOpen = false
             calendarMonth = new Date()
         }
     }
 
     function openSystem() {
-        systemOpen = !systemOpen
-        if (systemOpen)
-            calendarOpen = false
+        togglePanel("system")
     }
 
     onLauncherQueryChanged: launcherIndex = 0
 
     function openClipboardPicker() {
-        clipboardPickerOpen = !clipboardPickerOpen
+        togglePanel("clipboard")
         if (clipboardPickerOpen) {
-            themePickerOpen = false
-            wallpaperPickerOpen = false
             clipboardQuery = ""
             clipboardIndex = 0
             clipboardEntries = []
@@ -237,10 +249,8 @@ PanelWindow {
     }
 
     function openEmojiPicker() {
-        emojiPickerOpen = !emojiPickerOpen
+        togglePanel("emoji")
         if (emojiPickerOpen) {
-            closePanels()
-            emojiPickerOpen = true
             emojiQuery = ""
             emojiIndex = 0
             emojiDataProcess.running = true
@@ -349,7 +359,7 @@ PanelWindow {
         target: "pill"
 
         function toggleTheme(): void {
-            root.themePickerOpen = !root.themePickerOpen
+            root.togglePanel("theme")
             if (root.themePickerOpen)
                 root.themeIndex = Math.max(0, root.themeModes.indexOf(Local.Theme.mode))
         }

@@ -89,7 +89,12 @@ PanelWindow {
         } else if (selectedWifi.saved) {
             actionProcess.command = ["nmcli", "connection", "up", "id", selectedWifi.ssid]
         } else if (selectedWifi.secure) {
-            actionProcess.command = ["sh", "-c", "nmcli device wifi connect \"$1\" password \"$2\"", "wifi-connect", selectedWifi.ssid, wifiPassword]
+            wifiConnectProcess.ssid = selectedWifi.ssid
+            wifiConnectProcess.password = wifiPassword
+            wifiConnectProcess.running = true
+            wifiPassword = ""
+            refreshTimer.restart()
+            return
         } else {
             actionProcess.command = ["sh", "-c", "nmcli device wifi connect \"$1\"", "wifi-connect", selectedWifi.ssid]
         }
@@ -194,6 +199,17 @@ PanelWindow {
     }
 
     Process { id: actionProcess }
+
+    Process {
+        id: wifiConnectProcess
+        property string ssid: ""
+        property string password: ""
+        command: ["sh", "-c", "IFS= read -r password; nmcli device wifi connect \"$1\" password \"$password\"", "wifi-connect", ssid]
+        onRunningChanged: {
+            if (running)
+                write(password + "\n")
+        }
+    }
 
     Timer {
         interval: 3000

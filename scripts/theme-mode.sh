@@ -11,6 +11,7 @@ fi
 
 case "$MODE" in
     dark|light)
+        mkdir -p "$CONFIG_DIR/dunst/dunstrc.d"
         ln -sfn "$CONFIG_DIR/dunst/themes/$MODE.conf" "$CONFIG_DIR/dunst/dunstrc.d/99-theme.conf"
         ln -sfn "$CONFIG_DIR/fuzzel/themes/$MODE.ini" "$CONFIG_DIR/fuzzel/theme.ini"
         ln -sfn "$CONFIG_DIR/kitty/themes/$MODE.conf" "$CONFIG_DIR/kitty/theme.conf"

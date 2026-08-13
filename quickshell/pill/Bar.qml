@@ -41,13 +41,17 @@ PanelWindow {
     }
 
     Timer {
-        interval: 1000
+        interval: Settings.showSeconds ? 1000 : 10000
         running: true
         repeat: true
-        onTriggered: {
-            root.now = new Date()
-            brightnessProcess.running = true
-        }
+        onTriggered: root.now = new Date()
+    }
+
+    Timer {
+        interval: 10000
+        running: true
+        repeat: true
+        onTriggered: brightnessProcess.running = true
     }
 
     component Pill: Rectangle {
@@ -191,6 +195,7 @@ PanelWindow {
 
                         Process {
                             id: brightnessChange
+                            onExited: brightnessProcess.running = true
                         }
 
                         MouseArea {
