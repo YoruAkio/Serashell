@@ -112,8 +112,8 @@ FloatingWindow {
         radius: 7
         color: selected ? Local.Theme.accent : childMouse.containsMouse ? Local.Theme.surface : "transparent"
 
-        Text { anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter; text: sidebarChild.icon; color: Local.Theme.secondaryText; font.family: Local.Theme.font; font.pixelSize: 13 }
-        Text { anchors.left: parent.left; anchors.leftMargin: 32; anchors.verticalCenter: parent.verticalCenter; text: sidebarChild.label; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 12; font.bold: sidebarChild.selected }
+        Text { anchors.left: parent.left; anchors.leftMargin: 9; anchors.verticalCenter: parent.verticalCenter; text: sidebarChild.icon; color: Local.Theme.secondaryText; font.family: Local.Theme.font; font.pixelSize: 16 }
+        Text { anchors.left: parent.left; anchors.leftMargin: 34; anchors.verticalCenter: parent.verticalCenter; text: sidebarChild.label; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 12; font.bold: sidebarChild.selected }
         MouseArea { id: childMouse; anchors.fill: parent; hoverEnabled: true; onClicked: sidebarChild.activated() }
     }
 
@@ -414,7 +414,17 @@ FloatingWindow {
                             anchors.left: parent.left
                             anchors.leftMargin: 9
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "󰑓  Reset"
+                            text: "󰑓"
+                            color: Local.Theme.text
+                            font.family: Local.Theme.font
+                            font.pixelSize: 16
+                        }
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 30
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Reset"
                             color: Local.Theme.text
                             font.family: Local.Theme.font
                             font.pixelSize: 10
