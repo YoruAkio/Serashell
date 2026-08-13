@@ -15,7 +15,7 @@ PanelWindow {
         right: true
     }
 
-    implicitHeight: 430
+    implicitHeight: Math.ceil(9 + 400 * Math.max(1, Local.Settings.launcherPanelSize / 100, Local.Settings.clipboardPanelSize / 100))
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     mask: Region { item: dismissArea.visible ? dismissArea : island }
@@ -46,6 +46,8 @@ PanelWindow {
     property bool launcherOpen: false
     property string launcherQuery: ""
     property int launcherIndex: 0
+    property var launcherUsage: ({})
+    readonly property string launcherUsagePath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/serashell/app-launcher-usage"
     readonly property var applications: DesktopEntries.applications.values
     readonly property var filteredApplications: filterApplications(launcherQuery)
     readonly property var selectedApplication: filteredApplications.length > 0 ? filteredApplications[launcherIndex] : null
@@ -182,8 +184,8 @@ PanelWindow {
                 score += match - cursor
                 cursor = match + 1
             }
-            return { app: app, score: score }
-        }).filter(result => result !== null).sort((left, right) => left.score - right.score).map(result => result.app)
+            return { app: app, score: score, usage: launcherUsage[app.id] || 0 }
+        }).filter(result => result !== null).sort((left, right) => left.score - right.score || right.usage - left.usage || left.app.name.localeCompare(right.app.name)).map(result => result.app)
     }
 
     function openLauncher() {
@@ -203,9 +205,33 @@ PanelWindow {
     function launchApplication(application) {
         if (!application)
             return
+        const usage = Object.assign({}, launcherUsage)
+        usage[application.id] = (usage[application.id] || 0) + 1
+        launcherUsage = usage
+        launcherUsageProcess.command = ["sh", "-c", "mkdir -p \"$(dirname \"$1\")\"; touch \"$1\"; tmp=$(mktemp \"${1}.XXXXXX\") || exit 1; awk -F '\\t' -v id=\"$2\" 'BEGIN { found=0 } $1 == id { print id \"\\t\" ($2 + 1); found=1; next } NF { print } END { if (!found) print id \"\\t1\" }' \"$1\" > \"$tmp\" && mv \"$tmp\" \"$1\"", "launcher-usage", launcherUsagePath, application.id]
+        launcherUsageProcess.running = true
         Quickshell.execDetached({ command: application.command, workingDirectory: application.workingDirectory })
         launcherOpen = false
     }
+
+    FileView {
+        path: root.launcherUsagePath
+        watchChanges: true
+        printErrors: false
+        onLoaded: {
+            const usage = {}
+            const lines = text().trim().split("\n")
+            for (let i = 0; i < lines.length; i++) {
+                const fields = lines[i].split("\t")
+                if (fields.length === 2 && fields[0])
+                    usage[fields[0]] = Math.max(0, Number(fields[1]) || 0)
+            }
+            root.launcherUsage = usage
+        }
+        onFileChanged: reload()
+    }
+
+    Process { id: launcherUsageProcess }
 
     function openCalendar() {
         togglePanel("calendar")
