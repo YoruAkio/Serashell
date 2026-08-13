@@ -1,18 +1,17 @@
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import "Singletons" as Local
 import "components" as Components
 
-PanelWindow {
+FloatingWindow {
     id: root
 
-    anchors { top: true; left: true; right: true; bottom: true }
+    title: "Serashell"
+    implicitWidth: 820
+    implicitHeight: 530
+    minimumSize: Qt.size(600, 420)
     color: "transparent"
-    exclusionMode: ExclusionMode.Ignore
     visible: open
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
     property bool open: true
     property string page: "appearance"
@@ -74,7 +73,7 @@ PanelWindow {
         signal toggled(bool value)
 
         width: parent.width
-        height: 54
+        height: 44
         opacity: enabled ? 1 : 0.45
 
         Text {
@@ -89,7 +88,8 @@ PanelWindow {
 
         Text {
             anchors.left: parent.left
-            anchors.bottom: parent.bottom
+            anchors.top: parent.top
+            anchors.topMargin: 24
             text: parent.description
             color: Local.Theme.muted
             font.family: Local.Theme.font
@@ -116,9 +116,9 @@ PanelWindow {
             id: card
 
             anchors.centerIn: parent
-            width: 680
-            height: 410
-            radius: 26
+            width: root.width
+            height: root.height
+            radius: 10
             color: Local.Theme.background
             border.color: Local.Theme.accent
             border.width: 1
@@ -160,11 +160,11 @@ PanelWindow {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                anchors.topMargin: 16
+                anchors.topMargin: 24
                 anchors.bottomMargin: 16
                 anchors.leftMargin: 8
-                width: 160
-                radius: 20
+                width: 172
+                radius: 15
                 color: Local.Theme.background
 
                 Column {
@@ -180,11 +180,24 @@ PanelWindow {
 
                         Text {
                             anchors.left: parent.left
-                            anchors.top: parent.top
-                            text: "󰒓  Serashell"
+                            anchors.leftMargin: 6
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.verticalCenterOffset: -10
+                            text: "󰒓"
                             color: Local.Theme.text
                             font.family: Local.Theme.font
-                            font.pixelSize: 14
+                            font.pixelSize: 17
+                        }
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 30
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.verticalCenterOffset: -10
+                            text: "Serashell"
+                            color: Local.Theme.text
+                            font.family: Local.Theme.font
+                            font.pixelSize: 16
                             font.bold: true
                         }
 
@@ -202,6 +215,13 @@ PanelWindow {
                         label: "Date & Time"
                         selected: root.page === "clock"
                         onActivated: root.page = "clock"
+                    }
+
+                    SidebarItem {
+                        icon: "󰍛"
+                        label: "System status"
+                        selected: root.page === "system"
+                        onActivated: root.page = "system"
                     }
                 }
 
@@ -288,7 +308,7 @@ PanelWindow {
                 Column {
                     visible: root.page === "appearance"
                     anchors.fill: parent
-                    spacing: 14
+                    spacing: 5
 
                     Text {
                         text: "Appearance"
@@ -314,7 +334,7 @@ PanelWindow {
                             required property int index
                             required property string modelData
                             width: content.width
-                            height: 46
+                            height: 44
                             readonly property int value: index === 0 ? Local.Settings.barRadius : Local.Settings.pillRadius
 
                             function setValue(next) {
@@ -347,7 +367,7 @@ PanelWindow {
                         id: islandStyleRow
 
                         width: parent.width
-                        height: 46
+                        height: 44
 
                         Text {
                             anchors.left: parent.left
@@ -508,14 +528,13 @@ PanelWindow {
 
                     Rectangle {
                         width: parent.width
-                        height: 194
+                        height: 148
                         radius: 18
-                        color: Local.Theme.surface
+                        color: "transparent"
 
                         Column {
                             anchors.fill: parent
-                            anchors.margins: 16
-                            spacing: 9
+                            spacing: 8
 
                             SettingRow {
                                 label: "Show date"
@@ -550,6 +569,61 @@ PanelWindow {
                                 }
                             }
                         }
+                    }
+                }
+
+                Column {
+                    visible: root.page === "system"
+                    anchors.fill: parent
+                    spacing: 14
+
+                    Text {
+                        text: "System status"
+                        color: Local.Theme.text
+                        font.family: Local.Theme.font
+                        font.pixelSize: 18
+                        font.bold: true
+                    }
+
+                    Text {
+                        text: "Choose what appears in the bar"
+                        color: Local.Theme.muted
+                        font.family: Local.Theme.font
+                        font.pixelSize: 12
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 200
+                        radius: 18
+                        color: "transparent"
+
+                        Column {
+                            anchors.fill: parent
+                            spacing: 8
+
+                            SettingRow { label: "CPU usage"; description: "Display processor load"; enabled: true; checked: Local.Settings.showCpu; onToggled: value => { Local.Settings.showCpu = value; Local.Settings.save() } }
+                            SettingRow { label: "RAM usage"; description: "Display memory use"; enabled: true; checked: Local.Settings.showMemory; onToggled: value => { Local.Settings.showMemory = value; Local.Settings.save() } }
+                            SettingRow { label: "Temperature"; description: "Display system temperature"; enabled: true; checked: Local.Settings.showTemperature; onToggled: value => { Local.Settings.showTemperature = value; Local.Settings.save() } }
+                            SettingRow { label: "Network speed"; description: "Display network throughput"; enabled: true; checked: Local.Settings.showNetwork; onToggled: value => { Local.Settings.showNetwork = value; Local.Settings.save() } }
+                        }
+                    }
+
+                    Item {
+                        z: temperatureDropdown.open ? 1 : 0
+                        width: parent.width
+                        height: 34
+
+                        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Temperature unit"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 13 }
+                        Components.Dropdown { id: temperatureDropdown; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; options: [{ label: "Celsius (°C)" }, { label: "Fahrenheit (°F)" }]; currentIndex: Local.Settings.temperatureUnit === "F" ? 1 : 0; onSelected: index => { Local.Settings.temperatureUnit = index === 1 ? "F" : "C"; Local.Settings.save() } }
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 34
+
+                        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Network display"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 13 }
+                        Components.Dropdown { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; options: [{ label: "Download" }, { label: "Upload" }, { label: "Both" }]; currentIndex: Local.Settings.networkMode === "download" ? 0 : Local.Settings.networkMode === "upload" ? 1 : 2; onSelected: index => { Local.Settings.networkMode = ["download", "upload", "both"][index]; Local.Settings.save() } }
                     }
                 }
             }

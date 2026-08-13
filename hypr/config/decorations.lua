@@ -1,3 +1,27 @@
+local config_dir = os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")
+local mode_file = io.open(config_dir .. "/quickshell/theme-mode", "r")
+local mode = mode_file and mode_file:read("*l") or "dark"
+
+if mode_file then
+    mode_file:close()
+end
+
+local colors = {}
+local palette = io.open((os.getenv("HOME") .. "/.wall/wp_rice_") .. (mode == "light" and "light" or "dark") .. ".txt", "r")
+
+if palette then
+    for line in palette:lines() do
+        local key, value = line:match("^([%w_]+)=(#%x%x%x%x%x%x)$")
+        if key then
+            colors[key] = value:sub(2)
+        end
+    end
+    palette:close()
+end
+
+local active_border = colors.dark_accent or "4B3D43"
+local inactive_border = colors.highlight or "CCB7A0"
+
 hl.config({
     general = {
         gaps_in = 5,
@@ -7,8 +31,8 @@ hl.config({
         allow_tearing = false,
         layout = "dwindle",
         col = {
-            active_border = "rgba(2d4f67ee)",
-            inactive_border = "rgba(16161daa)",
+            active_border = "rgba(" .. active_border .. "ee)",
+            inactive_border = "rgba(" .. inactive_border .. "aa)",
         },
     },
     decoration = {

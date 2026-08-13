@@ -19,7 +19,9 @@ Item {
     property var cpuHistory: []
     property var memoryHistory: []
     property var networkHistory: []
-    property bool active: false
+    property bool barActive: false
+    property bool panelActive: false
+    readonly property bool active: barActive || panelActive
 
     function append(history, value) {
         const next = history.slice()
@@ -60,9 +62,11 @@ Item {
                 monitor.previousIdle = idle
                 monitor.previousReceived = received
                 monitor.previousSent = sent
-                monitor.cpuHistory = monitor.append(monitor.cpuHistory, monitor.cpu)
-                monitor.memoryHistory = monitor.append(monitor.memoryHistory, monitor.memory)
-                monitor.networkHistory = monitor.append(monitor.networkHistory, monitor.download + monitor.upload)
+                if (monitor.panelActive) {
+                    monitor.cpuHistory = monitor.append(monitor.cpuHistory, monitor.cpu)
+                    monitor.memoryHistory = monitor.append(monitor.memoryHistory, monitor.memory)
+                    monitor.networkHistory = monitor.append(monitor.networkHistory, monitor.download + monitor.upload)
+                }
             }
         }
     }

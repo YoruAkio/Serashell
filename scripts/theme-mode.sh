@@ -19,6 +19,7 @@ case "$MODE" in
         ln -sfn "$CONFIG_DIR/mako/themes/$MODE.conf" "$CONFIG_DIR/mako/config"
         mkdir -p "$CONFIG_DIR/quickshell"
         printf '%s\n' "$MODE" > "$CONFIG_DIR/quickshell/theme-mode"
+        hyprctl reload >/dev/null 2>&1 || true
         dunstctl reload >/dev/null 2>&1 || true
         makoctl reload >/dev/null 2>&1 || true
         pkill -SIGUSR2 waybar 2>/dev/null || true

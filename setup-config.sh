@@ -1,10 +1,14 @@
 #!/bin/bash
 
-# @note script to create symbolic links from dotfiles to ~/.config/
+# @note script to install dotfiles into the user configuration
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$HOME/.config"
 BACKUP_DIR="$SCRIPT_DIR/backup/backup-$(date '+%M:%H-%d:%m')"
+
+if [ -e "$BACKUP_DIR" ]; then
+    BACKUP_DIR="$BACKUP_DIR-$(date '+%s')"
+fi
 
 # @note list of folders to link
 FOLDERS=(
@@ -26,7 +30,7 @@ backup_target() {
     local target="$2"
     local name="$3"
 
-    if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
+    if [ "$INSTALL_MODE" = "symlink" ] && [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
         return
     fi
 
@@ -37,10 +41,35 @@ backup_target() {
     fi
 }
 
-echo "Setting up dotfile symlinks..."
+install_target() {
+    local source="$1"
+    local target="$2"
+
+    if [ "$INSTALL_MODE" = "symlink" ]; then
+        ln -sfn "$source" "$target"
+    else
+        cp -a "$source" "$target"
+        if [ "$(basename "$source")" = "quickshell" ]; then
+            rm -f "$target/pill-settings"
+        fi
+    fi
+}
+
+echo "Setting up dotfiles..."
 echo "Source: $SCRIPT_DIR"
 echo "Target: $CONFIG_DIR"
 echo ""
+read -p "Install mode: [s]ymlink or [c]opy? [s]: " -n 1 -r
+echo
+
+case "${REPLY:-s}" in
+    s|S) INSTALL_MODE="symlink" ;;
+    c|C) INSTALL_MODE="copy" ;;
+    *)
+        echo "Invalid install mode" >&2
+        exit 1
+        ;;
+esac
 
 # @note create .config directory if it doesn't exist
 mkdir -p "$CONFIG_DIR"
@@ -55,16 +84,16 @@ for folder in "${FOLDERS[@]}"; do
     fi
     
     backup_target "$SOURCE" "$TARGET" "$folder"
-    echo "✓ Linking $folder"
-    ln -sfn "$SOURCE" "$TARGET"
+    echo "✓ Installing $folder"
+    install_target "$SOURCE" "$TARGET"
 done
 
 WALLPAPER_SOURCE="$SCRIPT_DIR/wallpaper"
 WALLPAPER_TARGET="$HOME/.wall"
 
 backup_target "$WALLPAPER_SOURCE" "$WALLPAPER_TARGET" "wallpaper"
-echo "✓ Linking wallpapers"
-ln -sfn "$WALLPAPER_SOURCE" "$WALLPAPER_TARGET"
+echo "✓ Installing wallpapers"
+install_target "$WALLPAPER_SOURCE" "$WALLPAPER_TARGET"
 
 PILL_SETTINGS="$CONFIG_DIR/quickshell/pill-settings"
 if [ ! -s "$PILL_SETTINGS" ]; then
@@ -73,4 +102,4 @@ if [ ! -s "$PILL_SETTINGS" ]; then
 fi
 
 echo ""
-echo "✅ Done! All symlinks created."
+echo "✅ Done! Configuration installed with $INSTALL_MODE mode."

@@ -7,8 +7,8 @@ Item {
     property var pill
     property real morphCloseness: 0
 
-    Component.onCompleted: Local.SystemMonitor.active = true
-    Component.onDestruction: Local.SystemMonitor.active = false
+    Component.onCompleted: Local.SystemMonitor.panelActive = true
+    Component.onDestruction: Local.SystemMonitor.panelActive = false
 
     component Metric: Rectangle {
         required property string icon

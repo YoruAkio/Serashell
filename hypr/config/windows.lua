@@ -6,6 +6,7 @@ for _, rule in ipairs({
     { name = "float-media", match = { title = "^(imv|mpv|danmufloat|termfloat|nemo|ncmpcpp)$" }, float = true, size = "960 540", move = "25%- 0" },
     { name = "float-waydroid", match = { class = "^(Waydroid)$" }, float = true, size = "1280 720", center = true },
     { name = "float-pavucontrol", match = { class = "^(org.pulseaudio.pavucontrol|pavucontrol-qt)$" }, float = true },
+    { name = "float-serashell-settings", match = { title = "^Serashell$" }, float = true, center = true },
     { name = "float-picture-in-picture", match = { class = "^()$", title = "^(Picture in picture)$" }, float = true },
     { name = "float-save-file", match = { class = "^()$", title = "^(Save File)$" }, float = true },
     { name = "float-open-file", match = { class = "^()$", title = "^(Open File)$" }, float = true },

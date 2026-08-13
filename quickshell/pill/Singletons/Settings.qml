@@ -13,11 +13,17 @@ Item {
     property bool showDate: true
     property bool showTime: true
     property bool showSeconds: false
+    property bool showCpu: true
+    property bool showMemory: true
+    property bool showTemperature: true
+    property bool showNetwork: true
+    property string temperatureUnit: "C"
+    property string networkMode: "download"
     readonly property string path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings"
     readonly property string defaultPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings.default"
 
     function save() {
-        saveProcess.command = ["sh", "-c", "mkdir -p \"$(dirname \"$1\")\" && printf 'barRadius=%s\\npillRadius=%s\\nnotchMode=%s\\nshowDate=%s\\nshowTime=%s\\nshowSeconds=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" > \"$1\"", "pill-settings", path, barRadius, pillRadius, notchMode ? "true" : "false", showDate ? "true" : "false", showTime ? "true" : "false", showSeconds ? "true" : "false"]
+        saveProcess.command = ["sh", "-c", "mkdir -p \"$(dirname \"$1\")\" && printf 'barRadius=%s\\npillRadius=%s\\nnotchMode=%s\\nshowDate=%s\\nshowTime=%s\\nshowSeconds=%s\\nshowCpu=%s\\nshowMemory=%s\\nshowTemperature=%s\\nshowNetwork=%s\\ntemperatureUnit=%s\\nnetworkMode=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" \"$8\" \"$9\" \"${10}\" \"${11}\" \"${12}\" \"${13}\" > \"$1\"", "pill-settings", path, barRadius, pillRadius, notchMode ? "true" : "false", showDate ? "true" : "false", showTime ? "true" : "false", showSeconds ? "true" : "false", showCpu ? "true" : "false", showMemory ? "true" : "false", showTemperature ? "true" : "false", showNetwork ? "true" : "false", temperatureUnit, networkMode]
         saveProcess.running = true
     }
 
@@ -42,6 +48,12 @@ Item {
                 if (pair[0] === "showDate") settings.showDate = pair[1] !== "false"
                 if (pair[0] === "showTime") settings.showTime = pair[1] !== "false"
                 if (pair[0] === "showSeconds") settings.showSeconds = pair[1] === "true"
+                if (pair[0] === "showCpu") settings.showCpu = pair[1] !== "false"
+                if (pair[0] === "showMemory") settings.showMemory = pair[1] !== "false"
+                if (pair[0] === "showTemperature") settings.showTemperature = pair[1] !== "false"
+                if (pair[0] === "showNetwork") settings.showNetwork = pair[1] !== "false"
+                if (pair[0] === "temperatureUnit") settings.temperatureUnit = pair[1] === "F" ? "F" : "C"
+                if (pair[0] === "networkMode") settings.networkMode = ["download", "upload", "both"].includes(pair[1]) ? pair[1] : "download"
             }
         }
         onFileChanged: reload()

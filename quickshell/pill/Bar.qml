@@ -23,6 +23,22 @@ PanelWindow {
     property int pillHeight: 30
     property date now: new Date()
     property string brightness: "--"
+    readonly property bool showSystemStatus: Settings.showCpu || Settings.showMemory || Settings.showTemperature || Settings.showNetwork
+
+    Binding {
+        target: SystemMonitor
+        property: "barActive"
+        value: root.showSystemStatus
+    }
+
+    function networkSpeed(value) {
+        return value >= 1024 ? (value / 1024).toFixed(1) + " MB/s" : Math.round(value) + " KB/s"
+    }
+
+    function temperatureIcon(value) {
+        if (value < 0) return ""
+        return ["", "", "", "", ""][Math.min(4, Math.floor(value / 20))]
+    }
 
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink]
@@ -58,6 +74,34 @@ PanelWindow {
         radius: Settings.barRadius
         color: Theme.surface
         height: root.pillHeight
+    }
+
+    component StatusMetric: Item {
+        required property string icon
+        required property string value
+        implicitWidth: iconText.implicitWidth + 4 + valueText.implicitWidth
+        implicitHeight: 20
+
+        Text {
+            id: iconText
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.icon
+            color: Theme.secondaryText
+            font.family: Theme.font
+            font.pixelSize: 15
+        }
+
+        Text {
+            id: valueText
+            anchors.left: iconText.right
+            anchors.leftMargin: 4
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.value
+            color: Theme.secondaryText
+            font.family: Theme.font
+            font.pixelSize: 12
+        }
     }
 
     Item {
@@ -151,6 +195,47 @@ PanelWindow {
             anchors.top: parent.top
             anchors.topMargin: 8
             spacing: 8
+
+            Pill {
+                visible: root.showSystemStatus
+                width: monitorRow.width + 22
+
+                Row {
+                    id: monitorRow
+                    anchors.centerIn: parent
+                    spacing: 10
+
+                    StatusMetric {
+                        visible: Settings.showCpu
+                        icon: "󰻠"
+                        value: SystemMonitor.cpu + "%"
+                    }
+
+                    StatusMetric {
+                        visible: Settings.showMemory
+                        icon: "󰍛"
+                        value: SystemMonitor.memory + "%"
+                    }
+
+                    StatusMetric {
+                        visible: Settings.showTemperature
+                        icon: root.temperatureIcon(SystemMonitor.temperature)
+                        value: {
+                            if (SystemMonitor.temperature < 0)
+                                return "--"
+                            const value = Settings.temperatureUnit === "F" ? Math.round(SystemMonitor.temperature * 9 / 5 + 32) : SystemMonitor.temperature
+                            return value + "°" + Settings.temperatureUnit
+                        }
+                    }
+
+                    Row {
+                        visible: Settings.showNetwork
+                        spacing: 4
+                        StatusMetric { visible: Settings.networkMode !== "upload"; icon: "󰇚"; value: root.networkSpeed(SystemMonitor.download) }
+                        StatusMetric { visible: Settings.networkMode !== "download"; icon: "󰕒"; value: root.networkSpeed(SystemMonitor.upload) }
+                    }
+                }
+            }
 
             Pill {
                 width: systemRow.width + 22
