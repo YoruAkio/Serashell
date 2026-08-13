@@ -16,18 +16,18 @@ PACKAGES=(
     # terminal and shell
     "kitty"
     "zsh"
+    "git"
+    "curl"
     
     # application launchers
     "fuzzel"
     "rofi"
     
-    # status bar and notifications
-    "waybar"
+    # notifications
     "dunst"
     "quickshell"
     
     # system monitoring
-    "btop"
     "fastfetch"
     
     # file management and browsers
@@ -83,6 +83,7 @@ PACKAGES=(
     "kvantum"
     "qt5ct"
     "qt6ct"
+    "qt6-svg"
 )
 
 echo "The following packages will be installed:"
@@ -105,6 +106,22 @@ echo "Installing packages with yay..."
 echo ""
 
 yay -S --needed "${PACKAGES[@]}"
+
+# @note install oh my zsh without replacing the user's current zshrc
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    KEEP_ZSHRC=yes RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended --keep-zshrc
+fi
+
+ZSH_CUSTOM_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+mkdir -p "$ZSH_CUSTOM_DIR/plugins"
+
+if [ ! -d "$ZSH_CUSTOM_DIR/plugins/zsh-autosuggestions" ]; then
+    git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM_DIR/plugins/zsh-autosuggestions"
+fi
+
+if [ ! -d "$ZSH_CUSTOM_DIR/plugins/zsh-syntax-highlighting" ]; then
+    git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM_DIR/plugins/zsh-syntax-highlighting"
+fi
 
 echo ""
 echo "✅ Dependencies installation complete!"

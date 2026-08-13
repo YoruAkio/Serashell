@@ -1,0 +1,212 @@
+# Get editor completions based on the config schema
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Inserts a blank line between shell prompts
+add_newline = true
+
+# Wait 10 milliseconds for starship to check files under the current directory.
+scan_timeout = 10
+
+# Timeout for commands executed by starship (in milliseconds).
+command_timeout = 500
+
+# Custom format to show username@hostname {path}
+format = """
+$username[@](bold white)$hostname[ ](bold white)$directory \
+$git_branch\
+$git_commit\
+$git_state\
+$git_metrics\
+$git_status\
+$package\
+$c\
+$cmake\
+$cobol\
+$daml\
+$dart\
+$deno\
+$dotnet\
+$elixir\
+$elm\
+$erlang\
+$fennel\
+$gleam\
+$golang\
+$guix_shell\
+$haskell\
+$haxe\
+$helm\
+$java\
+$julia\
+$kotlin\
+$gradle\
+$lua\
+$nim\
+$nodejs\
+$ocaml\
+$opa\
+$perl\
+$php\
+$pulumi\
+$purescript\
+$python\
+$quarto\
+$raku\
+$rlang\
+$red\
+$ruby\
+$rust\
+$scala\
+$solidity\
+$swift\
+$terraform\
+$typst\
+$vlang\
+$vagrant\
+$zig\
+$buf\
+$nix_shell\
+$conda\
+$meson\
+$spack\
+$docker_context\
+$aws\
+$gcloud\
+$openstack\
+$azure\
+$nats\
+$direnv\
+$env_var\
+$mise\
+$crystal\
+$custom\
+$sudo\
+$cmd_duration\
+$line_break\
+$jobs\
+$battery\
+$time\
+$status\
+$character"""
+
+# Configure the character module (prompt symbol)
+[character]
+success_symbol = '[❯](bold green)'
+error_symbol = '[❯](bold red)'
+
+# Configure the directory module
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+format = '[$path]($style)'
+style = 'bold yellow'
+
+# Configure the git branch module
+[git_branch]
+symbol = '🌿 '
+format = 'on [$symbol$branch(:$remote_branch)]($style) '
+style = 'bold purple'
+
+# Configure the git status module
+[git_status]
+format = '([\[$all_status$ahead_behind\]]($style) )'
+
+# Configure command duration module
+[cmd_duration]
+min_time = 2_000
+format = 'took [$duration]($style) '
+
+# Configure the time module (disabled by default)
+[time]
+disabled = true
+format = 'at [$time]($style) '
+
+# Configure the status module (disabled by default)
+[status]
+disabled = true
+
+# Configure the sudo module (disabled by default)
+[sudo]
+disabled = true
+
+# Configure memory usage module (disabled by default)
+[memory_usage]
+disabled = true
+threshold = 75
+
+# Configure battery module
+[battery]
+full_symbol = '🔋 '
+charging_symbol = '⚡ '
+discharging_symbol = '🪫 '
+unknown_symbol = '❓ '
+empty_symbol = '💀 '
+
+[[battery.display]]
+threshold = 10
+style = 'bold red'
+
+[[battery.display]]
+threshold = 30
+style = 'bold yellow'
+
+# Configure shell level module (disabled by default)
+[shlvl]
+disabled = true
+threshold = 2
+
+# Configure jobs module
+[jobs]
+symbol = '⚙️ '
+style = 'bold blue'
+number_threshold = 1
+symbol_threshold = 1
+
+# Configure hostname module
+[hostname]
+ssh_only = false
+format = '[$hostname](bold red)'
+disabled = false
+
+# Configure username module
+[username]
+style_user = 'bold cyan'
+style_root = 'bold red'
+format = '[$user](bold cyan)'
+disabled = false
+show_always = true
+
+# Configure line break
+[line_break]
+disabled = false
+
+# Language modules with emoji icons
+[nodejs]
+symbol = '🟢 '
+
+[python]
+symbol = '🐍 '
+
+[rust]
+symbol = '🦀 '
+
+[golang]
+symbol = '🐹 '
+
+[java]
+symbol = '☕ '
+
+[docker_context]
+symbol = '🐳 '
+
+[package]
+symbol = '📦 '
+
+[lua]
+symbol = '🌙 '
+
+[php]
+symbol = '🐘 '
+
+[ruby]
+symbol = '💎 '

@@ -12,17 +12,16 @@ fi
 
 # @note list of folders to link
 FOLDERS=(
-    "btop"
-    "dunst"
-    "fastfetch"
-    "fuzzel"
-    "hypr"
-    "kitty"
-    "mako"
-    "quickshell"
-    "Kvantum"
+    "config/dunst"
+    "config/fastfetch"
+    "config/fuzzel"
+    "config/hypr"
+    "config/kitty"
+    "config/mako"
+    "config/quickshell"
+    "config/Kvantum"
+    "config/starship"
     "scripts"
-    "waybar"
 )
 
 backup_target() {
@@ -75,18 +74,30 @@ esac
 mkdir -p "$CONFIG_DIR"
 
 for folder in "${FOLDERS[@]}"; do
+    NAME="${folder##*/}"
     SOURCE="$SCRIPT_DIR/$folder"
-    TARGET="$CONFIG_DIR/$folder"
+    TARGET="$CONFIG_DIR/$NAME"
     
     if [ ! -d "$SOURCE" ]; then
         echo "⚠️  Warning: $SOURCE does not exist, skipping..."
         continue
     fi
     
-    backup_target "$SOURCE" "$TARGET" "$folder"
-    echo "✓ Installing $folder"
+    backup_target "$SOURCE" "$TARGET" "$NAME"
+    echo "✓ Installing $NAME"
     install_target "$SOURCE" "$TARGET"
 done
+
+ZSHRC_SOURCE="$SCRIPT_DIR/config/.zshrc"
+ZSHRC_TARGET="$HOME/.zshrc"
+
+if [ -f "$ZSHRC_SOURCE" ]; then
+    backup_target "$ZSHRC_SOURCE" "$ZSHRC_TARGET" ".zshrc"
+    echo "✓ Installing .zshrc"
+    install_target "$ZSHRC_SOURCE" "$ZSHRC_TARGET"
+else
+    echo "⚠️  Warning: $ZSHRC_SOURCE does not exist, skipping..."
+fi
 
 WALLPAPER_SOURCE="$SCRIPT_DIR/wallpaper"
 WALLPAPER_TARGET="$HOME/.wall"

@@ -15,7 +15,7 @@ The main interface is a compact, theme-aware Quickshell shell with a top bar, Dy
 
 ## Serashell
 
-The active Quickshell configuration lives in `quickshell/`.
+The active Quickshell configuration lives in `config/quickshell/`.
 
 - **Dynamic Island / macOS Notch** — switchable presentation styles
 - **Top bar** — system tray, workspaces, active window title, system status, AI usage, sound, brightness, battery, and clock

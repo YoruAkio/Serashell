@@ -2,23 +2,23 @@
 
 ## Scope
 
-This repository contains personal Linux dotfiles. The Quickshell configuration lives in `quickshell/` and provides the Serashell bar, island/notch, control centre, settings, selectors, and panels.
+This repository contains personal Linux dotfiles. The Quickshell configuration lives in `config/quickshell/` and provides the Serashell bar, island/notch, control centre, settings, selectors, and panels.
 
 Keep changes scoped to the requested feature. Preserve unrelated user changes in the worktree.
 
 ## Quickshell structure
 
-- `quickshell/shell.qml` is the entry point.
-- `quickshell/pill/Bar.qml` is the top bar.
-- `quickshell/pill/Pill.qml` is the center island/notch and on-demand selectors.
-- `quickshell/pill/ControlCenter.qml` is the control centre.
-- `quickshell/pill/SettingsWindow.qml` is the Serashell settings window.
-- `quickshell/pill/Singletons/` contains persistent settings, theme values, and system-monitor state.
-- `quickshell/pill/components/` contains reusable controls.
+- `config/quickshell/shell.qml` is the entry point.
+- `config/quickshell/pill/Bar.qml` is the top bar.
+- `config/quickshell/pill/Pill.qml` is the center island/notch and on-demand selectors.
+- `config/quickshell/pill/ControlCenter.qml` is the control centre.
+- `config/quickshell/pill/SettingsWindow.qml` is the Serashell settings window.
+- `config/quickshell/pill/Singletons/` contains persistent settings, theme values, and system-monitor state.
+- `config/quickshell/pill/components/` contains reusable controls.
 
 ## Reusable controls
 
-Use components from `quickshell/pill/components/` instead of creating one-off copies:
+Use components from `config/quickshell/pill/components/` instead of creating one-off copies:
 
 - `Toggle.qml` for every boolean setting and Wi-Fi/Bluetooth-style switch.
 - `Slider.qml` for sound, brightness, and future continuous values.
@@ -44,7 +44,7 @@ Then use `Components.Toggle`, `Components.Slider`, `Components.Dropdown`, or `Co
 ## Visual language
 
 - Read all colors and font settings from `Singletons/Theme.qml`; do not hardcode a new palette in panels.
-- Persist user-facing options through `Singletons/Settings.qml` and `quickshell/pill-settings`.
+- Persist user-facing options through `Singletons/Settings.qml` and `config/quickshell/pill-settings`.
 - Use `Theme.background` for the base layer, `Theme.surface` for raised content, `Theme.accent` for borders, and `Theme.highlight` for active selections.
 - Keep dark/light support automatic by relying on the theme singleton.
 - Match existing rounded rectangles, compact mono typography, and short easing animations.
