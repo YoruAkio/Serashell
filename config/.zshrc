@@ -1,15 +1,16 @@
-# Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
-fpath=("$HOME/.grok/completions/zsh" $fpath)
 
-# Set name of the theme to load --- if set to "random", it will
-ZSH_THEME="agnoster"
+DISABLE_AUTO_UPDATE="true"
+# Skip magic function bindings you likely don't use (bracketed paste fixups etc).
+DISABLE_MAGIC_FUNCTIONS="true"
+DISABLE_UPDATE_PROMPT="true"
 
-# Which plugins would you like to load?
+ZSH_THEME=""
+
 plugins=(
-	git
-	zsh-autosuggestions
-	zsh-syntax-highlighting
+  git
+  zsh-autosuggestions
+  zsh-syntax-highlighting
 )
 
 source $ZSH/oh-my-zsh.sh
@@ -24,37 +25,41 @@ fi
 # Set personal aliases, overriding those provided by Oh My Zsh libs,
 alias ff="fastfetch"
 alias sudo='sudo --prompt="[🔒] password for %p: "'
-# alias ls="ls -l"
 alias ls="exa -l --git --icons --group-directories-first"
 alias ll="ls -al"
 alias la="ls -a"
-alias h="history"
-alias cls="clear"
 alias c="codium"
-alias zconf="micro ~/.zshrc"
 alias cd="z"
 alias wcc="warp-cli connect"
 alias wdc="warp-cli disconnect"
-alias zc="zeroclaw"
 alias claude="claude --dangerously-skip-permissions"
 alias codex="codex --dangerously-bypass-approvals-and-sandbox"
 alias agent="agent --yolo"
-alias zed="zeditor"
-alias oc="opencode --auto"
 
 # tmux
 alias tmn="tmux new -s"
 alias tma="tmux attach -t"
 alias tmd="tmux detach"
+alias tmr="tmux source-file ~/.tmux.conf"
 
-# starship
-eval "$(starship init zsh)"
-
-# zoxide
-eval "$(zoxide init zsh)"
-
-# starship config
+# starship config (must be set before starship init picks it up)
 export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"
+
+if [ -s "$HOME/.cache/starship-init.zsh" ]; then
+  source "$HOME/.cache/starship-init.zsh"
+elif command -v starship >/dev/null 2>&1; then
+  mkdir -p "$HOME/.cache"
+  starship init zsh > "$HOME/.cache/starship-init.zsh"
+  source "$HOME/.cache/starship-init.zsh"
+fi
+
+if [ -s "$HOME/.cache/zoxide-init.zsh" ]; then
+  source "$HOME/.cache/zoxide-init.zsh"
+elif command -v zoxide >/dev/null 2>&1; then
+  mkdir -p "$HOME/.cache"
+  zoxide init zsh > "$HOME/.cache/zoxide-init.zsh"
+  source "$HOME/.cache/zoxide-init.zsh"
+fi
 
 # bun completions
 [ -s "/home/akio/.bun/_bun" ] && source "/home/akio/.bun/_bun"
@@ -62,9 +67,6 @@ export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
-
-# go binary
-# export PATH=$PATH:$(go env GOPATH)/bin
 
 # android studio
 export ANDROID_HOME=$HOME/Android/Sdk
@@ -77,12 +79,15 @@ export CAPACITOR_ANDROID_STUDIO_PATH=/opt/android-studio/bin/studio
 export PATH=/home/akio/.opencode/bin:/home/akio/.local/bin:$PATH
 
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+lazynvm() {
+  unset -f nvm node npm npx
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+}
+nvm()  { lazynvm; nvm "$@"; }
+node() { lazynvm; node "$@"; }
+npm()  { lazynvm; npm "$@"; }
+npx()  { lazynvm; npx "$@"; }
 
 # rust
 . "$HOME/.cargo/env"
-
-# >>> grok installer >>>
-export PATH="$HOME/.grok/bin:$PATH"
-# <<< grok installer <<<
