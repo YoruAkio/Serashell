@@ -38,6 +38,8 @@ PACKAGES=(
     "hyprshot"
     "hyprpicker"
     "grim"
+    "slurp"
+    "wf-recorder"
     
     # clipboard management
     "cliphist"

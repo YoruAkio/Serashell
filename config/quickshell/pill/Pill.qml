@@ -19,7 +19,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     mask: Region { item: dismissArea.visible ? dismissArea : island }
-    WlrLayershell.keyboardFocus: (themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: panelOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property var player: {
         const players = Mpris.players.values
@@ -54,6 +54,9 @@ PanelWindow {
     property bool calendarOpen: false
     property bool systemOpen: false
     property bool emojiPickerOpen: false
+    property bool recorderOpen: false
+    property var recordActions: []
+    property int recordIndex: 0
     property int emojiIndex: 0
     property string emojiQuery: ""
     property var emojiEntries: []
@@ -62,8 +65,8 @@ PanelWindow {
     property date calendarMonth: new Date()
     readonly property var filteredClipboard: filterClipboard(clipboardQuery)
     readonly property var selectedClipboard: filteredClipboard.length > 0 ? filteredClipboard[clipboardIndex] : null
-    readonly property bool expanded: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen || ((hasMedia || idleMedia) && islandHover.hovered && !copiedNotice)
-    readonly property bool panelOpen: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen
+    readonly property bool expanded: panelOpen || ((hasMedia || idleMedia) && islandHover.hovered && !copiedNotice)
+    readonly property bool panelOpen: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen || recorderOpen
 
     function closePanels() {
         themePickerOpen = false
@@ -73,6 +76,7 @@ PanelWindow {
         calendarOpen = false
         systemOpen = false
         emojiPickerOpen = false
+        recorderOpen = false
         emojiEntries = []
     }
 
@@ -84,6 +88,7 @@ PanelWindow {
                 || (panel === "calendar" && calendarOpen)
                 || (panel === "system" && systemOpen)
                 || (panel === "emoji" && emojiPickerOpen)
+                || (panel === "recorder" && recorderOpen)
         closePanels()
         if (alreadyOpen)
             return
@@ -94,6 +99,51 @@ PanelWindow {
         else if (panel === "calendar") calendarOpen = true
         else if (panel === "system") systemOpen = true
         else if (panel === "emoji") emojiPickerOpen = true
+        else if (panel === "recorder") recorderOpen = true
+    }
+
+    function openRecorder() {
+        togglePanel("recorder")
+        if (recorderOpen) {
+            recordActions = []
+            recordIndex = 0
+            recorderListProcess.running = true
+        }
+    }
+
+    function runRecorderAction(action) {
+        if (!action)
+            return
+        if (action.mode === "stop") {
+            Quickshell.execDetached({
+                command: ["sh", "-c", "pkill -INT -x wf-recorder && notify-send -a 'Serashell Recorder' -r 9977 'Recording stopped' 'Finalizing video…'", "serashell-recorder"]
+            })
+        } else {
+            Quickshell.execDetached({
+                command: ["sh", "-c", "mkdir -p \"$HOME/Videos/Screenrecord\"; output=\"$HOME/Videos/Screenrecord/$(date '+%H-%M-%S_%d-%m-%y').mp4\"; audio=--audio; if command -v pactl >/dev/null; then source=\"$(pactl get-default-sink 2>/dev/null).monitor\"; [ -n \"$source\" ] && audio=\"--audio=$source\"; fi; setsid -f wf-recorder -o \"$1\" \"$audio\" -f \"$output\" </dev/null >\"${XDG_RUNTIME_DIR:-/tmp}/serashell-recording.log\" 2>&1; sleep 0.3; pgrep -x wf-recorder >/dev/null && notify-send -a 'Serashell Recorder' -r 9977 'Recording started' \"Monitor $1\" || notify-send -a 'Serashell Recorder' -r 9977 -u critical 'Recording failed' 'See serashell-recording.log'", "serashell-recorder", action.value]
+            })
+        }
+        closePanels()
+    }
+
+    Process {
+        id: recorderListProcess
+        command: ["sh", "-c", "if pgrep -x wf-recorder >/dev/null; then printf 'stop\\tStop recording\\tFinalize the current recording\\n'; else hyprctl monitors -j | jq -r '.[].name' | while IFS= read -r output; do [ -n \"$output\" ] && printf 'output\\t%s\\tRecord monitor %s\\n' \"$output\" \"$output\"; done; fi"]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.recordActions = this.text.trim().split("\n").filter(line => line).map(line => {
+                    const fields = line.split("\t")
+                    return {
+                        mode: fields[0],
+                        value: fields[0] === "output" ? fields[1] : "",
+                        label: fields[1],
+                        description: fields[2]
+                    }
+                })
+                root.recordIndex = 0
+            }
+        }
     }
 
     function applyTheme(mode) {
@@ -406,11 +456,15 @@ PanelWindow {
         function toggleEmoji(): void {
             root.openEmojiPicker()
         }
+
+        function toggleRecorder(): void {
+            root.openRecorder()
+        }
     }
 
     FocusScope {
         anchors.fill: parent
-        focus: root.themePickerOpen || root.wallpaperPickerOpen || root.clipboardPickerOpen || root.launcherOpen || root.calendarOpen || root.systemOpen || root.emojiPickerOpen
+        focus: root.panelOpen
         Keys.priority: Keys.BeforeItem
 
         Keys.onPressed: event => {
@@ -458,6 +512,15 @@ PanelWindow {
                 event.accepted = true
             } else if (root.emojiPickerOpen && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
                 root.copyEmoji(root.filteredEmojis[root.emojiIndex])
+                event.accepted = true
+            } else if (root.recorderOpen && event.key === Qt.Key_Up) {
+                root.recordIndex = Math.max(0, root.recordIndex - 1)
+                event.accepted = true
+            } else if (root.recorderOpen && event.key === Qt.Key_Down) {
+                root.recordIndex = Math.min(root.recordActions.length - 1, root.recordIndex + 1)
+                event.accepted = true
+            } else if (root.recorderOpen && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+                root.runRecorderAction(root.recordActions[root.recordIndex])
                 event.accepted = true
             }
         }
@@ -516,6 +579,7 @@ PanelWindow {
             if (root.launcherOpen) return 520 * Local.Settings.launcherPanelSize / 100
             if (root.clipboardPickerOpen) return 520 * Local.Settings.clipboardPanelSize / 100
             if (root.emojiPickerOpen) return 430
+            if (root.recorderOpen) return 360
             if (root.calendarOpen) return 340
             if (root.wallpaperPickerOpen) return 460 * Local.Settings.wallpaperPanelSize / 100
             if (root.themePickerOpen) return 340 * Local.Settings.themePanelSize / 100
@@ -531,6 +595,7 @@ PanelWindow {
             if (root.launcherOpen) return 400 * Local.Settings.launcherPanelSize / 100
             if (root.clipboardPickerOpen) return 400 * Local.Settings.clipboardPanelSize / 100
             if (root.emojiPickerOpen) return 376
+            if (root.recorderOpen) return Math.max(86, 42 + root.recordActions.length * 46)
             if (root.wallpaperPickerOpen) return 166 * Local.Settings.wallpaperPanelSize / 100
             if (root.themePickerOpen) return 100 * Local.Settings.themePanelSize / 100
             if (Local.Settings.notchMode) return root.expanded ? 180 * Local.Settings.mediaPanelSize / 100 : 36
@@ -649,7 +714,7 @@ PanelWindow {
             artSource: root.player ? root.player.trackArtUrl : ""
             cornerRadius: width / 2
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.panelOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 120 }
@@ -663,7 +728,7 @@ PanelWindow {
             anchors.rightMargin: 9
             anchors.verticalCenter: compactArt.verticalCenter
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.panelOpen && !root.copiedNotice
             text: root.player ? root.player.trackTitle : ""
             color: Local.Theme.text
             font.family: Local.Theme.font
@@ -685,7 +750,7 @@ PanelWindow {
             height: parent.height - anchors.topMargin
             readonly property real contentScale: Math.min(parent.width / 420, parent.height / 180)
             opacity: root.expanded ? island.morphCloseness : 0
-            visible: (root.hasMedia || root.idleMedia) && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
+            visible: (root.hasMedia || root.idleMedia) && !root.panelOpen && !root.copiedNotice
 
             Behavior on opacity {
                 NumberAnimation { duration: 50 }
@@ -836,6 +901,12 @@ PanelWindow {
             active: root.emojiPickerOpen
             anchors.fill: parent
             sourceComponent: Component { EmojiSelector { pill: root; morphCloseness: island.morphCloseness } }
+        }
+
+        Loader {
+            active: root.recorderOpen
+            anchors.fill: parent
+            sourceComponent: Component { RecorderPanel { pill: root; morphCloseness: island.morphCloseness } }
         }
 
 
