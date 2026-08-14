@@ -16,6 +16,7 @@ PACKAGES=(
     # terminal and shell
     "kitty"
     "zsh"
+    "tmux"
     "git"
     "curl"
     

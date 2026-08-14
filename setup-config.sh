@@ -99,6 +99,17 @@ else
     echo "⚠️  Warning: $ZSHRC_SOURCE does not exist, skipping..."
 fi
 
+TMUX_SOURCE="$SCRIPT_DIR/config/.tmux.conf"
+TMUX_TARGET="$HOME/.tmux.conf"
+
+if [ -f "$TMUX_SOURCE" ]; then
+    backup_target "$TMUX_SOURCE" "$TMUX_TARGET" ".tmux.conf"
+    echo "✓ Installing .tmux.conf"
+    install_target "$TMUX_SOURCE" "$TMUX_TARGET"
+else
+    echo "⚠️  Warning: $TMUX_SOURCE does not exist, skipping..."
+fi
+
 WALLPAPER_SOURCE="$SCRIPT_DIR/wallpaper"
 WALLPAPER_TARGET="$HOME/.wall"
 

@@ -19,6 +19,7 @@ case "$MODE" in
         ln -sfn "$CONFIG_DIR/mako/themes/$MODE.conf" "$CONFIG_DIR/mako/config"
         mkdir -p "$CONFIG_DIR/quickshell"
         printf '%s\n' "$MODE" > "$CONFIG_DIR/quickshell/theme-mode"
+        tmux source-file "$HOME/.tmux.conf" >/dev/null 2>&1 || true
         hyprctl reload >/dev/null 2>&1 || true
         dunstctl reload >/dev/null 2>&1 || true
         makoctl reload >/dev/null 2>&1 || true
