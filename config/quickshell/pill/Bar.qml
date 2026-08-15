@@ -24,6 +24,7 @@ PanelWindow {
     property int pillHeight: 30
     property date now: new Date()
     property string brightness: "--"
+    signal trayMenuRequested(var item, int anchorX)
     readonly property string activeWindowTitle: Hyprland.activeToplevel?.title || "Desktop"
     readonly property bool showMonitorStatus: Settings.showCpu || Settings.showMemory || Settings.showTemperature || Settings.showNetwork
     readonly property bool showSystemStatus: root.showMonitorStatus || Settings.showAiUsage
@@ -36,6 +37,17 @@ PanelWindow {
 
     function networkSpeed(value) {
         return value >= 1024 ? (value / 1024).toFixed(1) + " MB/s" : Math.round(value) + " KB/s"
+    }
+
+    // @note find the tray item under a global x so the tray menu can switch targets
+    function trayItemAt(globalX) {
+        for (let i = 0; i < trayRow.children.length; i++) {
+            const child = trayRow.children[i]
+            const pos = child.mapToItem(null, 0, 0)
+            if (globalX >= pos.x && globalX <= pos.x + child.width)
+                return child
+        }
+        return null
     }
 
     function temperatureIcon(value) {
@@ -133,6 +145,7 @@ PanelWindow {
                         model: SystemTray.items
 
                         delegate: Item {
+                            id: trayItem
                             required property var modelData
                             width: 16
                             height: 16
@@ -144,7 +157,20 @@ PanelWindow {
 
                             MouseArea {
                                 anchors.fill: parent
-                                onClicked: modelData.activate()
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                onClicked: mouse => {
+                                    if (mouse.button === Qt.RightButton) {
+                                        // @note open the themed tray menu below the icon; fall back to secondary activate
+                                        if (modelData.hasMenu) {
+                                            const pos = trayItem.mapToItem(null, trayItem.width / 2, 0)
+                                            root.trayMenuRequested(modelData, Math.round(pos.x))
+                                        } else {
+                                            modelData.secondaryActivate()
+                                        }
+                                    } else {
+                                        modelData.activate()
+                                    }
+                                }
                             }
                         }
                     }

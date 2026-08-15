@@ -43,6 +43,10 @@ Item {
     property int launcherPanelSize: 100
     property int wallpaperPanelSize: 100
     property int themePanelSize: 100
+    property bool keystrokeEnabled: false
+    property string keystrokePosition: "bottom-center"
+    property int keystrokeSize: 100
+    property int keystrokeFadeTime: 2
     readonly property string path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings"
     readonly property string defaultPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings.default"
 
@@ -97,6 +101,10 @@ Item {
                 if (pair[0] === "launcherPanelSize") settings.launcherPanelSize = Math.max(50, Math.min(200, Number(pair[1]) || 100))
                 if (pair[0] === "wallpaperPanelSize") settings.wallpaperPanelSize = Math.max(50, Math.min(200, Number(pair[1]) || 100))
                 if (pair[0] === "themePanelSize") settings.themePanelSize = Math.max(50, Math.min(200, Number(pair[1]) || 100))
+                if (pair[0] === "keystrokeEnabled") settings.keystrokeEnabled = pair[1] === "true"
+                if (pair[0] === "keystrokePosition") { const valid = ["top-left","top-center","top-right","bottom-left","bottom-center","bottom-right"]; settings.keystrokePosition = valid.includes(pair[1]) ? pair[1] : "bottom-center" }
+                if (pair[0] === "keystrokeSize") settings.keystrokeSize = Math.max(50, Math.min(200, Number(pair[1]) || 100))
+                if (pair[0] === "keystrokeFadeTime") settings.keystrokeFadeTime = Math.max(1, Math.min(10, Number(pair[1]) || 2))
             }
             if (percentRoundness) {
                 settings.barRadius = Math.round(settings.barRadius * 15 / 100)
@@ -116,6 +124,7 @@ Item {
             aiSaveProcess.running = true
         }
     }
-    Process { id: aiSaveProcess }
+    Process { id: aiSaveProcess; onExited: { keystrokeSaveProcess.command = ["sh", "-c", "tmp=$(mktemp); awk '!/^keystrokeEnabled=|^keystrokePosition=|^keystrokeSize=|^keystrokeFadeTime=/' \"$1\" > \"$tmp\" && printf 'keystrokeEnabled=%s\\nkeystrokePosition=%s\\nkeystrokeSize=%s\\nkeystrokeFadeTime=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" >> \"$tmp\" && mv \"$tmp\" \"$1\"", "keystroke-settings", settings.path, settings.keystrokeEnabled ? "true" : "false", settings.keystrokePosition, settings.keystrokeSize, settings.keystrokeFadeTime]; keystrokeSaveProcess.running = true } }
+    Process { id: keystrokeSaveProcess }
     Process { id: resetProcess; onExited: settingsFile.reload() }
 }

@@ -275,7 +275,10 @@ FloatingWindow {
 
             MouseArea {
                 anchors.fill: parent
-                onClicked: islandStyleDropdown.open = false
+                onClicked: {
+                    islandStyleDropdown.open = false
+                    if (typeof keystrokePositionDropdown !== "undefined") keystrokePositionDropdown.open = false
+                }
             }
 
             Rectangle {
@@ -373,6 +376,13 @@ FloatingWindow {
                     }
 
                     SidebarChild { icon: "󰧑"; label: "Panel sizes"; selected: root.page === "panel-sizes"; onActivated: root.page = "panel-sizes" }
+
+                    SidebarItem {
+                        icon: "󰌌"
+                        label: "Keystroke"
+                        selected: root.page === "keystroke"
+                        onActivated: root.page = "keystroke"
+                    }
                 }
 
                 Row {
@@ -471,7 +481,7 @@ FloatingWindow {
                     x: 20
                     y: 4
                     width: contentViewport.width - 40
-                    height: root.page === "bar" ? 480 : root.page === "panel-sizes" ? 340 : contentViewport.height - 40
+                    height: root.page === "bar" ? 480 : root.page === "panel-sizes" ? 340 : root.page === "keystroke" ? 520 : contentViewport.height - 40
 
                 Column {
                     visible: root.page === "pill"
@@ -877,6 +887,130 @@ FloatingWindow {
 
                         Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Network display"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14 }
                         Components.Dropdown { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; options: [{ label: "Download" }, { label: "Upload" }, { label: "Both" }]; currentIndex: Local.Settings.networkMode === "download" ? 0 : Local.Settings.networkMode === "upload" ? 1 : 2; onSelected: index => { Local.Settings.networkMode = ["download", "upload", "both"][index]; Local.Settings.save() } }
+                    }
+                }
+
+                Column {
+                    visible: root.page === "keystroke"
+                    anchors.fill: parent
+                    spacing: root.settingSpacing
+
+                    Text { text: "Keystroke Visualizer"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 20; font.bold: true }
+                    Text { text: "On-screen keystroke overlay for casting and recording"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 13 }
+
+                    SettingRow {
+                        label: "Enable keystroke overlay"
+                        description: "Display currently pressed keys on screen"
+                        enabled: true
+                        checked: Local.Settings.keystrokeEnabled
+                        onToggled: value => {
+                            Local.Settings.keystrokeEnabled = value
+                            Local.Settings.save()
+                        }
+                    }
+
+                    Item {
+                        id: dropdownRow
+                        z: keystrokePositionDropdown.open ? 9999 : 1
+                        width: parent.width
+                        height: root.dropdownRowHeight
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Position"
+                            color: Local.Theme.text
+                            font.family: Local.Theme.font
+                            font.pixelSize: 14
+                        }
+
+                        Components.Dropdown {
+                            id: keystrokePositionDropdown
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            options: [
+                                { label: "Top Left", value: "top-left" },
+                                { label: "Top Center", value: "top-center" },
+                                { label: "Top Right", value: "top-right" },
+                                { label: "Bottom Left", value: "bottom-left" },
+                                { label: "Bottom Center", value: "bottom-center" },
+                                { label: "Bottom Right", value: "bottom-right" }
+                            ]
+                            currentIndex: {
+                                const pos = Local.Settings.keystrokePosition
+                                const idx = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"].indexOf(pos)
+                                return idx >= 0 ? idx : 4
+                            }
+                            onSelected: index => {
+                                const positions = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"]
+                                Local.Settings.keystrokePosition = positions[index]
+                                Local.Settings.save()
+                            }
+                        }
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: root.settingRowHeight
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Box size"
+                            color: Local.Theme.text
+                            font.family: Local.Theme.font
+                            font.pixelSize: 14
+                            font.bold: true
+                        }
+
+                        Row {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 6
+
+                            Components.ValueStepper {
+                                value: Local.Settings.keystrokeSize
+                                minimum: 50
+                                maximum: 200
+                                onChanged: value => {
+                                    Local.Settings.keystrokeSize = value
+                                    Local.Settings.save()
+                                }
+                            }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "%"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 12 }
+                        }
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: root.settingRowHeight
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Fade duration"
+                            color: Local.Theme.text
+                            font.family: Local.Theme.font
+                            font.pixelSize: 14
+                            font.bold: true
+                        }
+
+                        Row {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 6
+
+                            Components.ValueStepper {
+                                value: Local.Settings.keystrokeFadeTime
+                                minimum: 1
+                                maximum: 10
+                                onChanged: value => {
+                                    Local.Settings.keystrokeFadeTime = value
+                                    Local.Settings.save()
+                                }
+                            }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "s"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 12 }
+                        }
                     }
                 }
                 }

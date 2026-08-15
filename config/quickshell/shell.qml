@@ -1,3 +1,4 @@
+//@ pragma UseQApplication
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -11,9 +12,26 @@ ShellRoot {
     property int aiUsageAnchorX: 0
     property string settingsPage: "bar"
 
-    Pill.Bar {}
+    Pill.Bar {
+        id: bar
+        onTrayMenuRequested: (item, anchorX) => trayMenu.openMenu(item, anchorX)
+    }
     Pill.Pill {}
     Pill.AiUsagePanel { id: aiUsagePanel; anchorX: root.aiUsageAnchorX }
+    Pill.TrayMenu {
+        id: trayMenu
+        // @note right click while open: switch to the tray item under the cursor, or close
+        onSwitchRequested: globalX => {
+            const target = bar.trayItemAt(globalX)
+            if (target && target.modelData !== trayMenu.trayItem) {
+                const pos = target.mapToItem(null, target.width / 2, 0)
+                trayMenu.openMenu(target.modelData, Math.round(pos.x))
+            } else {
+                trayMenu.close()
+            }
+        }
+    }
+    Pill.KeystrokeOverlay {}
 
     Loader {
         id: controlCenterLoader
