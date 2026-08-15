@@ -278,6 +278,7 @@ FloatingWindow {
                 onClicked: {
                     islandStyleDropdown.open = false
                     if (typeof keystrokePositionDropdown !== "undefined") keystrokePositionDropdown.open = false
+                    if (typeof keystrokeModeDropdown !== "undefined") keystrokeModeDropdown.open = false
                 }
             }
 
@@ -944,6 +945,37 @@ FloatingWindow {
                             onSelected: index => {
                                 const positions = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"]
                                 Local.Settings.keystrokePosition = positions[index]
+                                Local.Settings.save()
+                            }
+                        }
+                    }
+
+                    Item {
+                        id: modeRow
+                        z: keystrokeModeDropdown.open ? 9999 : 1
+                        width: parent.width
+                        height: root.dropdownRowHeight
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Mode"
+                            color: Local.Theme.text
+                            font.family: Local.Theme.font
+                            font.pixelSize: 14
+                        }
+
+                        Components.Dropdown {
+                            id: keystrokeModeDropdown
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            options: [
+                                { label: "Separate", value: "separate" },
+                                { label: "Full", value: "full" }
+                            ]
+                            currentIndex: Local.Settings.keystrokeMode === "full" ? 1 : 0
+                            onSelected: index => {
+                                Local.Settings.keystrokeMode = index === 1 ? "full" : "separate"
                                 Local.Settings.save()
                             }
                         }
