@@ -514,6 +514,41 @@ antigravity() {
     [[ -n "$plan" ]] && emit antigravity Account 0 0 0 0 0 0 0 "$plan" true
 }
 
+# @note keep last-good rows when a provider's api fails this refresh (timeout/outage)
+provider_still_configured() {
+    case "$1" in
+        claude) [[ -r "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.credentials.json" || -r "$HOME/.claude/.credentials.json" ]] ;;
+        codex) [[ -r "$HOME/.codex/auth.json" || -r "$HOME/.config/codex/auth.json" ]] ;;
+        cursor)
+            [[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/Cursor/User/globalStorage/state.vscdb" \
+                || -r "${XDG_CONFIG_HOME:-$HOME/.config}/cursor/User/globalStorage/state.vscdb" ]]
+            ;;
+        antigravity)
+            [[ -r "${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/antigravity-accounts.json" ]] \
+                || pgrep -f '[l]anguage_server' >/dev/null 2>&1
+            ;;
+        opencode) [[ -r "${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/auth.json" ]] ;;
+        *) return 1 ;;
+    esac
+}
+
+merge_stale_providers() {
+    local fresh=$1 stale=$2 present id line
+    [[ -r "$stale" && -s "$fresh" ]] || return 0
+    present=$(jq -r '.id // empty' "$fresh" 2>/dev/null | sort -u | paste -sd, -)
+    present=",${present},"
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        id=$(jq -r '.id // empty' <<< "$line" 2>/dev/null) || continue
+        [[ -n "$id" ]] || continue
+        enabled_provider "$id" || continue
+        provider_still_configured "$id" || continue
+        [[ "$present" == *",$id,"* ]] && continue
+        printf '%s\n' "$line"
+        present="${present}${id},"
+    done < "$stale" >> "$fresh"
+}
+
 usage_tmp=$(mktemp "$cache_dir/usage.XXXXXX")
 {
     enabled_provider claude && claude
@@ -524,6 +559,10 @@ usage_tmp=$(mktemp "$cache_dir/usage.XXXXXX")
 } > "$usage_tmp"
 
 if [[ -s "$usage_tmp" ]]; then
+    merge_stale_providers "$usage_tmp" "$usage_cache"
+    # @note recover providers wiped by an earlier partial refresh before stale-merge existed
+    merge_stale_providers "$usage_tmp" "$cache_dir/usage-v9-$cache_key.jsonl"
+    merge_stale_providers "$usage_tmp" "$cache_dir/usage-v8-$cache_key.jsonl"
     mv "$usage_tmp" "$usage_cache"
 else
     rm -f "$usage_tmp"
