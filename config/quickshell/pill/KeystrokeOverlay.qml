@@ -230,15 +230,10 @@ PanelWindow {
             scale: root.containerScale
             visible: root.activeModifiers.length > 0 || root.activeSpecial.length > 0 || root.textBuffer.length > 0
 
-            anchors.top: root.topSide ? parent.top : undefined
-            anchors.bottom: root.bottomSide ? parent.bottom : undefined
-            anchors.left: root.leftSide ? parent.left : undefined
-            anchors.right: root.rightSide ? parent.right : undefined
-            anchors.horizontalCenter: root.centerSide ? parent.horizontalCenter : undefined
-            anchors.topMargin: root.topSide ? 46 : 0
-            anchors.bottomMargin: root.bottomSide ? 8 : 0
-            anchors.leftMargin: root.leftSide ? 8 : 0
-            anchors.rightMargin: root.rightSide ? 8 : 0
+            // @note compute x/y directly instead of toggling anchor lines at runtime;
+            // clearing anchors via undefined leaves conflicting lines that break positioning
+            x: root.leftSide ? 8 : root.rightSide ? screenCanvas.width - width - 8 : (screenCanvas.width - width) / 2
+            y: root.topSide ? 46 : screenCanvas.height - height - 8
 
             Behavior on opacity {
                 enabled: !fadeAnimation.running
