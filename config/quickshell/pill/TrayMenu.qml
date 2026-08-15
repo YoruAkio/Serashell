@@ -160,7 +160,8 @@ PanelWindow {
                                         // ponytail: submenus use the native popup instead of nesting panels
                                         modelData.display(card, entryMouse.mouseX, entryMouse.mouseY)
                                     } else {
-                                        modelData.sendTriggered()
+                                        // @note emit the triggered signal; sendTriggered is not callable from qml
+                                        modelData.triggered()
                                         root.close()
                                     }
                                 }
