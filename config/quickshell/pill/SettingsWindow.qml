@@ -720,6 +720,33 @@ FloatingWindow {
 
                     Item {
                         width: parent.width
+                        height: root.settingRowHeight
+
+                        Text { anchors.left: parent.left; anchors.top: parent.top; text: "Rescan providers"; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14; font.bold: true }
+                        Text { anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 24; text: "Refresh usage and subscription information now"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 11 }
+
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 96
+                            height: 28
+                            radius: 9
+                            color: rescanMouse.containsMouse ? Local.Theme.highlight : Local.Theme.surface
+                            border.color: Local.Theme.accent
+                            border.width: 1
+
+                            Text { anchors.centerIn: parent; text: "󰑐  Rescan"; color: rescanMouse.containsMouse ? Local.Theme.background : Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 11; font.bold: true }
+                            MouseArea {
+                                id: rescanMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: Quickshell.execDetached({ command: ["qs", "ipc", "call", "aiUsage", "refresh"] })
+                            }
+                        }
+                    }
+
+                    Item {
+                        width: parent.width
                         height: 20
                         Row {
                             anchors.right: parent.right

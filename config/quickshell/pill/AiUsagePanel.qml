@@ -31,9 +31,11 @@ PanelWindow {
                 return
             let group = groups.find(item => item.id === metric.id)
             if (!group) {
-                group = { id: metric.id, metrics: [], todayCost: metric.todayCost || 0, monthCost: metric.monthCost || 0, yesterdayCost: metric.yesterdayCost || 0, todayTokens: metric.todayTokens || 0, monthTokens: metric.monthTokens || 0, yesterdayTokens: metric.yesterdayTokens || 0 }
+                group = { id: metric.id, plan: metric.plan || "", metrics: [], todayCost: metric.todayCost || 0, monthCost: metric.monthCost || 0, yesterdayCost: metric.yesterdayCost || 0, todayTokens: metric.todayTokens || 0, monthTokens: metric.monthTokens || 0, yesterdayTokens: metric.yesterdayTokens || 0 }
                 groups.push(group)
             }
+            if (!group.plan && metric.plan)
+                group.plan = metric.plan
             group.metrics.push(metric)
         })
         return groups
@@ -213,9 +215,33 @@ PanelWindow {
                             required property int index
                             required property var modelData
                             width: dashboard.width
-                            height: 64 + modelData.metrics.length * 52 + (root.spendPeriod === "month" ? 18 : 0)
+                            readonly property real metricsBlockHeight: {
+                                let total = 12 + 8
+                                for (let i = 0; i < modelData.metrics.length; i++) {
+                                    if (i > 0)
+                                        total += 8
+                                    total += modelData.metrics[i].accountOnly ? 14 : 44
+                                }
+                                if (modelData.metrics.length > 0)
+                                    total += 8
+                                if (root.spendPeriod === "today")
+                                    total += 14
+                                else
+                                    total += 14 + 8 + 14
+                                return total
+                            }
+                            height: 30 + metricsBlockHeight
 
-                            Text { anchors.left: parent.left; anchors.leftMargin: 8; anchors.top: parent.top; anchors.topMargin: 5; text: root.providerName(providerCard.modelData.id); color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14; font.bold: true }
+                            Row {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 8
+                                anchors.top: parent.top
+                                anchors.topMargin: 5
+                                spacing: 6
+
+                                Text { text: root.providerName(providerCard.modelData.id); color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 14; font.bold: true }
+                                Text { visible: providerCard.modelData.plan.length > 0; anchors.verticalCenter: parent.verticalCenter; text: providerCard.modelData.plan; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 11 }
+                            }
 
                             Item {
                                 anchors.right: parent.right
@@ -256,33 +282,27 @@ PanelWindow {
                             Column {
                                 anchors.left: metricsCard.left; anchors.right: metricsCard.right; anchors.top: metricsCard.top
                                 anchors.leftMargin: 14; anchors.rightMargin: 14; anchors.topMargin: 12
+                                anchors.bottom: metricsCard.bottom; anchors.bottomMargin: 8
                                 spacing: 8
+
                                 Repeater {
                                     model: providerCard.modelData.metrics
                                     delegate: Item {
                                         id: metricRow
                                         required property var modelData
-                                        width: parent.width; height: 44
+                                        width: parent.width
+                                        height: modelData.accountOnly ? 14 : 44
                                         Text { anchors.left: parent.left; anchors.top: parent.top; text: metricRow.modelData.label; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 12; font.bold: true }
-                                        Text { anchors.right: parent.right; anchors.top: parent.top; text: metricRow.modelData.remaining + "% left"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 11 }
-                                        Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 20; height: 5; radius: 3; color: Local.Theme.accent }
-                                        Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 20; width: parent.width * metricRow.modelData.used / 100; height: 5; radius: 3; color: Local.Theme.highlight }
-                                        Text { anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 30; text: metricRow.modelData.used + "% used"; color: Local.Theme.subtleMuted; font.family: Local.Theme.font; font.pixelSize: 10 }
+                                        Text { anchors.right: parent.right; anchors.top: parent.top; text: metricRow.modelData.accountOnly ? "Signed in" : metricRow.modelData.remaining + "% left"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 11 }
+                                        Rectangle { visible: !metricRow.modelData.accountOnly; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 20; height: 5; radius: 3; color: Local.Theme.accent }
+                                        Rectangle { visible: !metricRow.modelData.accountOnly; anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 20; width: parent.width * metricRow.modelData.used / 100; height: 5; radius: 3; color: Local.Theme.highlight }
+                                        Text { visible: !metricRow.modelData.accountOnly; anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 30; text: metricRow.modelData.used + "% used"; color: Local.Theme.subtleMuted; font.family: Local.Theme.font; font.pixelSize: 10 }
                                     }
                                 }
-                            }
-
-                            Column {
-                                anchors.left: metricsCard.left
-                                anchors.right: metricsCard.right
-                                anchors.leftMargin: 14
-                                anchors.rightMargin: 14
-                                anchors.bottom: metricsCard.bottom
-                                anchors.bottomMargin: 8
-                                spacing: 2
 
                                 Text {
                                     visible: root.spendPeriod === "today"
+                                    width: parent.width
                                     text: root.money(providerCard.modelData.todayCost) + " · " + root.tokens(providerCard.modelData.todayTokens)
                                     color: Local.Theme.secondaryText
                                     font.family: Local.Theme.font

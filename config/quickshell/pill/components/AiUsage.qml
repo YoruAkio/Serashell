@@ -62,6 +62,7 @@ Item {
             delegate: Row {
                 id: providerUsage
                 required property var modelData
+                visible: !modelData.accountOnly
                 spacing: 4
 
                 Item {

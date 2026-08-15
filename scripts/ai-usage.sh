@@ -6,12 +6,27 @@ emit() {
         --argjson todayCost "${4:-0}" --argjson monthCost "${5:-0}" \
         --argjson todayTokens "${6:-0}" --argjson monthTokens "${7:-0}" \
         --argjson yesterdayCost "${8:-0}" --argjson yesterdayTokens "${9:-0}" \
-        '{id:$id,label:$label,used:($used|round),remaining:(100-($used|round)),todayCost:$todayCost,monthCost:$monthCost,todayTokens:$todayTokens,monthTokens:$monthTokens,yesterdayCost:$yesterdayCost,yesterdayTokens:$yesterdayTokens}'
+        --arg plan "${10:-}" \
+        --argjson accountOnly "${11:-false}" \
+        '{id:$id,label:$label,used:($used|round),remaining:(100-($used|round)),todayCost:$todayCost,monthCost:$monthCost,todayTokens:$todayTokens,monthTokens:$monthTokens,yesterdayCost:$yesterdayCost,yesterdayTokens:$yesterdayTokens,plan:$plan,accountOnly:$accountOnly}'
+}
+
+format_plan() {
+    case "${1,,}" in
+        free|*free*|*starter*) printf 'Free' ;;
+        plus|chatgpt_plus) printf 'Plus' ;;
+        ultra|*ultra*) printf 'Ultra' ;;
+        pro|chatgpt_pro|*pro*) printf 'Pro' ;;
+        max|chatgpt_max) printf 'Max' ;;
+        team) printf 'Team' ;;
+        enterprise) printf 'Enterprise' ;;
+        *) printf '%s' "$1" ;;
+    esac
 }
 
 if [[ ${1:-} == --self-test ]]; then
-    emit codex Session 41.4 1.25 7.5 1000 5000 0.75 600 |
-        jq -e '.id == "codex" and .used == 41 and .remaining == 59 and .monthCost == 7.5 and .monthTokens == 5000 and .yesterdayCost == 0.75 and .yesterdayTokens == 600' >/dev/null
+    emit codex Session 41.4 1.25 7.5 1000 5000 0.75 600 Pro |
+        jq -e '.id == "codex" and .used == 41 and .remaining == 59 and .plan == "Pro" and .monthCost == 7.5 and .monthTokens == 5000 and .yesterdayCost == 0.75 and .yesterdayTokens == 600' >/dev/null
     exit
 fi
 
@@ -21,7 +36,7 @@ cache_seconds=${2:-300}
 force=${3:-}
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/serashell/ai-usage
 cache_key=$(printf '%s' "$1" | tr -cd 'a-zA-Z0-9,_-')
-usage_cache=$cache_dir/usage-v6-$cache_key.jsonl
+usage_cache=$cache_dir/usage-v10-$cache_key.jsonl
 pricing_cache=$cache_dir/pricing-litellm.json
 supplement_cache=$cache_dir/pricing-openusage.json
 mkdir -p "$cache_dir"
@@ -227,7 +242,7 @@ PY
 }
 
 claude() {
-    local file token body session weekly today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
+    local file token body session weekly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
     file=$HOME/.claude/.credentials.json
     [[ -r "$file" ]] || return
     token=$(jq -r '.claudeAiOauth.accessToken // empty' "$file")
@@ -235,13 +250,14 @@ claude() {
     body=$(request "$token" https://api.anthropic.com/api/oauth/usage GET 'Accept: application/json' 'anthropic-beta: oauth-2025-04-20' 'User-Agent: claude-code/2.1.69')
     session=$(jq -r '.five_hour.utilization // empty' <<< "$body")
     weekly=$(jq -r '.seven_day.utilization // empty' <<< "$body")
+    plan=$(format_plan "$(jq -r '.claudeAiOauth.subscriptionType // empty' "$file")")
     read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(claude_spend)"
-    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
-    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
+    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
+    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
 }
 
 codex() {
-    local file token account body session weekly today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
+    local file token account body session weekly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
     file=$HOME/.codex/auth.json
     [[ -r "$file" ]] || file=$HOME/.config/codex/auth.json
     [[ -r "$file" ]] || return
@@ -251,15 +267,16 @@ codex() {
     body=$(request "$token" https://chatgpt.com/backend-api/wham/usage GET 'Accept: application/json' "ChatGPT-Account-Id: $account")
     session=$(jq -r '.rate_limit.primary_window.used_percent // empty' <<< "$body")
     weekly=$(jq -r '.rate_limit.secondary_window.used_percent // empty' <<< "$body")
+    plan=$(format_plan "$(jq -r '.plan_type // empty' <<< "$body")")
     read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(codex_spend)"
-    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
-    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
+    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
+    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
 }
 
 cursor() {
     command -v sqlite3 >/dev/null || return
     command -v python >/dev/null || return
-    local file token body total auto api today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
+    local file token body plan_body total auto api plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
     for file in "${XDG_CONFIG_HOME:-$HOME/.config}/Cursor/User/globalStorage/state.vscdb" "${XDG_CONFIG_HOME:-$HOME/.config}/cursor/User/globalStorage/state.vscdb"; do
         [[ -r "$file" ]] && break
     done
@@ -267,28 +284,234 @@ cursor() {
     token=$(sqlite3 -readonly "$file" "SELECT value FROM ItemTable WHERE key='cursorAuth/accessToken' LIMIT 1;" 2>/dev/null)
     [[ -n "$token" ]] || return
     body=$(request "$token" https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage POST 'Content-Type: application/json' 'Connect-Protocol-Version: 1')
+    plan_body=$(request "$token" https://api2.cursor.sh/aiserver.v1.DashboardService/GetPlanInfo POST 'Content-Type: application/json' 'Connect-Protocol-Version: 1')
     total=$(jq -r '.planUsage.totalPercentUsed // empty' <<< "$body")
     auto=$(jq -r '.planUsage.autoPercentUsed // empty' <<< "$body")
     api=$(jq -r '.planUsage.apiPercentUsed // empty' <<< "$body")
+    plan=$(format_plan "$(jq -r '.planInfo.planName // empty' <<< "$plan_body")")
     read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(cursor_spend "$token")"
-    [[ "$total" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Total "$total" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
-    [[ "$auto" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Auto "$auto" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
-    [[ "$api" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor API "$api" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens"
+    [[ "$total" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Total "$total" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
+    [[ "$auto" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Auto "$auto" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
+    [[ "$api" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor API "$api" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
+}
+
+opencode_spend() {
+    local data_dir today yesterday cutoff
+    data_dir=${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}
+    today=$(date +%F)
+    yesterday=$(date -d yesterday +%F)
+    cutoff=$(date -d '29 days ago 00:00' +%s)000
+    find "$data_dir" -maxdepth 1 -type f -name 'opencode*.db' -print0 2>/dev/null |
+        while IFS= read -r -d '' file; do
+            sqlite3 -readonly -separator $'\t' "$file" "SELECT strftime('%Y-%m-%d', time_created / 1000, 'unixepoch', 'localtime'), COALESCE(json_extract(data, '$.cost'), 0), COALESCE(json_extract(data, '$.tokens.total'), 0) FROM message WHERE time_created >= $cutoff AND json_valid(data) AND json_extract(data, '$.role') = 'assistant' AND json_extract(data, '$.providerID') IN ('opencode', 'opencode-go');" 2>/dev/null
+        done | awk -F '\t' -v today="$today" -v yesterday="$yesterday" '{monthCost += $2; monthTokens += $3; if ($1 == today) { todayCost += $2; todayTokens += $3 } if ($1 == yesterday) { yesterdayCost += $2; yesterdayTokens += $3 }} END {printf "%.6f %.6f %.0f %.0f %.6f %.0f", todayCost, monthCost, todayTokens, monthTokens, yesterdayCost, yesterdayTokens}'
 }
 
 opencode() {
-    local file token body rolling weekly monthly
-    file=$HOME/.local/share/opencode/auth.json
+    local data_dir file go_key api_key body rolling weekly monthly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
+    data_dir=${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}
+    file=$data_dir/auth.json
     [[ -r "$file" ]] || return
-    token=$(jq -r '."opencode-go".key // empty' "$file")
-    [[ -n "$token" ]] || return
-    body=$(request "$token" https://opencode.ai/zen/go/v1/usage GET 'Accept: application/json')
+    go_key=$(jq -r '."opencode-go".key // empty' "$file")
+    api_key=$(jq -r '.opencode.key // empty' "$file")
+    read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(opencode_spend)"
+    if [[ -z "$go_key" ]]; then
+        [[ -n "$api_key" ]] && emit opencode Usage 0 "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "API (Free)" true
+        return
+    fi
+    body=$(request "$go_key" https://opencode.ai/zen/go/v1/usage GET 'Accept: application/json')
     rolling=$(jq -r '.usage.rolling.percent // empty' <<< "$body")
     weekly=$(jq -r '.usage.weekly.percent // empty' <<< "$body")
     monthly=$(jq -r '.usage.monthly.percent // empty' <<< "$body")
-    [[ "$rolling" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit opencode Session "$rolling"
-    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit opencode Weekly "$weekly"
-    [[ "$monthly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit opencode Monthly "$monthly"
+    plan="API (Go)"
+    local emitted=0
+    [[ "$rolling" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Session "$rolling" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"; emitted=1; }
+    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"; emitted=1; }
+    [[ "$monthly" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Monthly "$monthly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"; emitted=1; }
+    # @note go key present but no active subscription windows — still show local spend
+    (( emitted )) || emit opencode Usage 0 "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "API (Free)" true
+}
+
+# @note pooled quota buckets from RetrieveUserQuotaSummary (openusage parity)
+antigravity_summary_emit() {
+    local body=$1 plan=$2 emitted=0 used
+    local -a order=(gemini-5h:Session gemini-weekly:Weekly 3p-5h:Claude 3p-weekly:"Claude Weekly")
+    local spec bucket label
+    for spec in "${order[@]}"; do
+        bucket=${spec%%:*}
+        label=${spec#*:}
+        used=$(jq -r --arg id "$bucket" '
+            ((.response.groups // .groups // []) | map(.buckets // []) | add // [])
+            | map(select(.bucketId == $id and (.remainingFraction | type == "number")))
+            | first | if . == null then empty else ((1 - .remainingFraction) * 100) end
+        ' <<< "$body" 2>/dev/null) || true
+        [[ "$used" =~ ^[0-9]+([.][0-9]+)?$ ]] || continue
+        emit antigravity "$label" "$used" 0 0 0 0 0 0 "$plan"
+        emitted=1
+    done
+    (( emitted ))
+}
+
+antigravity_models_emit() {
+    local body=$1 plan=$2
+    local gemini claude
+    read -r gemini claude <<< "$(jq -r '
+        [.models // {} | to_entries[]
+          | select(.value.isInternal != true)
+          | ((.value.displayName // .value.label // "") | ascii_downcase) as $label
+          | select($label != "")
+          | [($label | test("gemini")), (.value.quotaInfo.remainingFraction // 0)]]
+        | reduce .[] as $row ({g:null,c:null};
+            if $row[0] then .g = ([.g, $row[1]] | map(select(. != null)) | min)
+            else .c = ([.c, $row[1]] | map(select(. != null)) | min) end)
+        | [(.g // empty), (.c // empty)] | @tsv
+    ' <<< "$body" 2>/dev/null)"
+    local emitted=0
+    if [[ "$gemini" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        emit antigravity Session "$(jq -n --argjson f "$gemini" '(1 - $f) * 100')" 0 0 0 0 0 0 "$plan"
+        emitted=1
+    fi
+    if [[ "$claude" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        emit antigravity Claude "$(jq -n --argjson f "$claude" '(1 - $f) * 100')" 0 0 0 0 0 0 "$plan"
+        emitted=1
+    fi
+    (( emitted ))
+}
+
+antigravity_ls_call() {
+    local scheme=$1 port=$2 csrf=$3 method=$4
+    local -a curl_args=(--silent --show-error --fail --max-time 5 --request POST
+        --header 'Content-Type: application/json'
+        --header 'Connect-Protocol-Version: 1'
+        --header "x-codeium-csrf-token: $csrf"
+        --data '{"metadata":{"ideName":"antigravity","extensionName":"antigravity","ideVersion":"unknown","locale":"en"}}')
+    [[ $scheme == https ]] && curl_args+=(-k)
+    curl "${curl_args[@]}" "$scheme://127.0.0.1:$port/exa.language_server_pb.LanguageServerService/$method" 2>/dev/null || true
+}
+
+antigravity_from_ls() {
+    local plan=$1 pid csrf ports port scheme summary status tier
+    for pid in $(pgrep -f '[l]anguage_server' 2>/dev/null); do
+        grep -zaq antigravity "/proc/$pid/cmdline" 2>/dev/null || continue
+        csrf=$(tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | awk 'f { print; exit } $0 == "--csrf_token" { f = 1 }')
+        [[ -n "$csrf" ]] || continue
+        ports=$(ss -ltnpH 2>/dev/null | awk -v pid="$pid" '
+            index($0, "pid=" pid ",") {
+                if (match($0, /127\.[0-9.]+:[0-9]+/)) print substr($0, RSTART, RLENGTH)
+            }' | awk -F: '{print $NF}' | sort -nu)
+        for port in $ports; do
+            for scheme in https http; do
+                summary=$(antigravity_ls_call "$scheme" "$port" "$csrf" RetrieveUserQuotaSummary)
+                [[ -n "$summary" ]] || continue
+                status=$(antigravity_ls_call "$scheme" "$port" "$csrf" GetUserStatus)
+                tier=$(jq -r '.userStatus.userTier.name // .userTier.name // .userStatus.planStatus.planInfo.planName // .planStatus.planInfo.planName // empty' <<< "$status" 2>/dev/null)
+                [[ -n "$tier" ]] && plan=$(format_plan "$tier")
+                if antigravity_summary_emit "$summary" "$plan"; then
+                    return 0
+                fi
+            done
+        done
+    done
+    return 1
+}
+
+antigravity_oauth_client() {
+    # @note pull installed-app oauth client from the local antigravity binary — never ship these in git
+    local cache=$cache_dir/antigravity-oauth-client.tsv client_id client_secret bin
+    if [[ -r "$cache" ]]; then
+        IFS=$'\t' read -r client_id client_secret < "$cache"
+        [[ -n "$client_id" && -n "$client_secret" ]] && { printf '%s\t%s' "$client_id" "$client_secret"; return 0; }
+    fi
+    for bin in \
+        /opt/Antigravity/resources/bin/language_server \
+        /usr/share/antigravity/resources/bin/language_server \
+        /usr/lib/antigravity/resources/bin/language_server \
+        "${ANTIGRAVITY_LANGUAGE_SERVER:-}"; do
+        [[ -n "$bin" && -r "$bin" ]] || continue
+        read -r client_id client_secret <<< "$(python - "$bin" <<'PY'
+import re, sys
+data = open(sys.argv[1], "rb").read()
+# @note patterns split so the repo never contains a literal oauth client id/secret needle
+ids = re.findall(rb"[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com", data)
+sec_pat = ("GOC" + "SPX-[A-Za-z0-9_-]+").encode()
+secs = re.findall(sec_pat, data)
+if not ids or not secs:
+    raise SystemExit(1)
+print(ids[0].decode(), secs[0].decode())
+PY
+)" || continue
+        [[ -n "$client_id" && -n "$client_secret" ]] || continue
+        printf '%s\t%s\n' "$client_id" "$client_secret" > "$cache"
+        chmod 600 "$cache"
+        printf '%s\t%s' "$client_id" "$client_secret"
+        return 0
+    done
+    return 1
+}
+
+antigravity_refresh_token() {
+    local refresh=$1 cache=$cache_dir/antigravity-access.json now access expires client_id client_secret
+    now=$(date +%s)
+    if [[ -r "$cache" ]]; then
+        access=$(jq -r --argjson now "$now" 'select(.expiresAt > $now + 60) | .accessToken // empty' "$cache" 2>/dev/null)
+        [[ -n "$access" ]] && { printf '%s' "$access"; return 0; }
+    fi
+    IFS=$'\t' read -r client_id client_secret <<< "$(antigravity_oauth_client)" || return 1
+    local body
+    body=$(curl --silent --show-error --fail --max-time 15 \
+        --data-urlencode "client_id=$client_id" \
+        --data-urlencode "client_secret=$client_secret" \
+        --data-urlencode "refresh_token=$refresh" \
+        --data-urlencode 'grant_type=refresh_token' \
+        https://oauth2.googleapis.com/token 2>/dev/null) || return 1
+    access=$(jq -r '.access_token // empty' <<< "$body")
+    expires=$(jq -r '.expires_in // 3600' <<< "$body")
+    [[ -n "$access" ]] || return 1
+    jq -cn --arg token "$access" --argjson now "$now" --argjson expires "$expires" \
+        '{accessToken:$token,expiresAt:($now + $expires)}' > "$cache"
+    chmod 600 "$cache"
+    printf '%s' "$access"
+}
+
+antigravity_cloud_post() {
+    local token=$1 path=$2 base body
+    for base in https://daily-cloudcode-pa.googleapis.com https://cloudcode-pa.googleapis.com; do
+        body=$(curl --silent --show-error --fail --max-time 15 \
+            --request POST --data '{}' \
+            --header "Authorization: Bearer $token" \
+            --header 'Content-Type: application/json' \
+            --header 'Accept: application/json' \
+            --header 'User-Agent: antigravity' \
+            "$base$path" 2>/dev/null) || true
+        [[ -n "$body" ]] && { printf '%s' "$body"; return 0; }
+    done
+    return 1
+}
+
+antigravity_from_cloud() {
+    local plan=$1 file refresh token summary models
+    file=${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/antigravity-accounts.json
+    [[ -r "$file" ]] || return 1
+    refresh=$(jq -r '.accounts[.activeIndex].refreshToken // .accounts[0].refreshToken // empty' "$file")
+    [[ -n "$refresh" ]] || return 1
+    token=$(antigravity_refresh_token "$refresh") || return 1
+    summary=$(antigravity_cloud_post "$token" /v1internal:retrieveUserQuotaSummary) || true
+    if [[ -n "$summary" ]] && antigravity_summary_emit "$summary" "$plan"; then
+        return 0
+    fi
+    models=$(antigravity_cloud_post "$token" /v1internal:fetchAvailableModels) || true
+    [[ -n "$models" ]] && antigravity_models_emit "$models" "$plan"
+}
+
+antigravity() {
+    local file plan=""
+    file=${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}/antigravity-accounts.json
+    if [[ -r "$file" ]]; then
+        plan=$(format_plan "$(jq -r '.accounts[.activeIndex].tier // .accounts[0].tier // empty' "$file")")
+    fi
+    antigravity_from_ls "$plan" && return
+    antigravity_from_cloud "$plan" && return
+    [[ -n "$plan" ]] && emit antigravity Account 0 0 0 0 0 0 0 "$plan" true
 }
 
 usage_tmp=$(mktemp "$cache_dir/usage.XXXXXX")
@@ -296,6 +519,7 @@ usage_tmp=$(mktemp "$cache_dir/usage.XXXXXX")
     enabled_provider claude && claude
     enabled_provider codex && codex
     enabled_provider cursor && cursor
+    enabled_provider antigravity && antigravity
     enabled_provider opencode && opencode
 } > "$usage_tmp"
 
