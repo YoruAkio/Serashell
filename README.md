@@ -1,3 +1,5 @@
+
+
 <div align="center">
 
 # Serashell [WIP]
@@ -29,7 +31,7 @@ The active Quickshell configuration lives in `config/quickshell/`.
 For local development, validate the shell in the foreground:
 
 ```sh
-QT_QPA_PLATFORM=wayland qs
+timeout 12s env QT_QPA_PLATFORM=wayland qs
 ```
 
 ## Credits
