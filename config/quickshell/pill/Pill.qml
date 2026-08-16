@@ -133,13 +133,13 @@ PanelWindow {
             Quickshell.execDetached({
                 command: ["sh", "-c", "pkill -INT -x wf-recorder", "serashell-recorder"]
             })
-            root.showPillNotification("Recording Stopped", "󰻃", Local.Theme.danger, 70)
+            root.showPillNotification("Recording Stopped", "", Local.Theme.danger, 70)
         } else {
             root.recording = true
             Quickshell.execDetached({
                 command: ["sh", "-c", "mkdir -p \"$HOME/Videos/Screenrecord\"; output=\"$HOME/Videos/Screenrecord/$(date '+%H-%M-%S_%d-%m-%y').mp4\"; audio=--audio; if command -v pactl >/dev/null; then source=\"$(pactl get-default-sink 2>/dev/null).monitor\"; [ -n \"$source\" ] && audio=\"--audio=$source\"; fi; setsid -f wf-recorder -o \"$1\" \"$audio\" -f \"$output\" </dev/null >\"${XDG_RUNTIME_DIR:-/tmp}/serashell-recording.log\" 2>&1; sleep 0.3; pgrep -x wf-recorder >/dev/null", "serashell-recorder", action.value]
             })
-            root.showPillNotification("Recording Started", "󰻃", Local.Theme.danger, 70)
+            root.showPillNotification("Recording Started", "", Local.Theme.danger, 70)
         }
         closePanels()
     }
@@ -937,7 +937,7 @@ PanelWindow {
                 text: root.pillNotificationIcon
                 color: root.pillNotificationColor
                 font.family: Local.Theme.font
-                font.pixelSize: 15
+                font.pixelSize: 16
             }
 
             Text {
@@ -945,7 +945,7 @@ PanelWindow {
                 text: root.pillNotificationText
                 color: Local.Theme.text
                 font.family: Local.Theme.font
-                font.pixelSize: 11
+                font.pixelSize: 13
                 font.bold: true
             }
         }
