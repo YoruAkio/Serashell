@@ -8,6 +8,7 @@ ShellRoot {
     id: root
 
     property bool controlCenterLoaded: false
+    property bool powerMenuLoaded: false
     property bool settingsLoaded: false
     property int aiUsageAnchorX: 0
     property string settingsPage: "bar"
@@ -63,6 +64,32 @@ ShellRoot {
                 }
             }
         }
+    }
+
+    Loader {
+        id: powerMenuLoader
+        active: root.powerMenuLoaded
+        sourceComponent: Component {
+            Pill.PowerMenu { onDismissed: root.powerMenuLoaded = false }
+        }
+    }
+
+    IpcHandler {
+        target: "powerMenu"
+        function toggle(): void {
+            if (powerMenuLoader.item)
+                powerMenuLoader.item.toggle()
+            else {
+                root.powerMenuLoaded = true
+                powerMenuOpenTimer.restart()
+            }
+        }
+    }
+
+    Timer {
+        id: powerMenuOpenTimer
+        interval: 0
+        onTriggered: powerMenuLoader.item?.toggle()
     }
 
     IpcHandler {

@@ -4,7 +4,7 @@ local mod = "SUPER"
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd(programs.terminal))
 hl.bind(mod .. " + E", hl.dsp.exec_cmd(programs.file_manager))
 hl.bind(mod .. " + R", hl.dsp.exec_cmd("qs ipc call pill toggleLauncher"))
-hl.bind(mod .. " + X", hl.dsp.exec_cmd(programs.scripts .. "/powermenu.sh"))
+hl.bind(mod .. " + X", hl.dsp.exec_cmd("qs ipc call powerMenu toggle"))
 hl.bind(mod .. " + V", hl.dsp.exec_cmd("qs ipc call pill toggleClipboard"))
 hl.bind(mod .. " + Period", hl.dsp.exec_cmd("qs ipc call pill toggleEmoji"))
 hl.bind(mod .. " + SHIFT + Period", hl.dsp.exec_cmd("qs ipc call pillSettings toggle"))
