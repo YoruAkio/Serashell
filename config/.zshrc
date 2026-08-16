@@ -68,16 +68,6 @@ fi
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-# android studio
-export ANDROID_HOME=$HOME/Android/Sdk
-export PATH=$PATH:$ANDROID_HOME/emulator
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-# export QT_QPA_PLATFORM=xcb
-export CAPACITOR_ANDROID_STUDIO_PATH=/opt/android-studio/bin/studio
-
-# opencode, local/bin
-export PATH=/home/akio/.opencode/bin:/home/akio/.local/bin:$PATH
-
 export NVM_DIR="$HOME/.nvm"
 lazynvm() {
   unset -f nvm node npm npx
@@ -89,5 +79,5 @@ node() { lazynvm; node "$@"; }
 npm()  { lazynvm; npm "$@"; }
 npx()  { lazynvm; npx "$@"; }
 
-# rust
-. "$HOME/.cargo/env"
+# Added by Antigravity CLI installer
+export PATH="/home/akio/.local/bin:$PATH"
