@@ -17,6 +17,8 @@ Item {
     readonly property color muted: light ? "#625458" : "#AA9D8A"
     readonly property color subtleMuted: light ? "#857974" : "#908A7B"
     readonly property color highlight: light ? "#4B3D43" : "#CCB7A0"
+    readonly property color danger: light ? "#B5443C" : "#E06C5F"
+    readonly property color success: light ? "#5F7D4A" : "#86A96F"
     readonly property string font: "JetBrains Mono Nerd Font"
 
     FileView {

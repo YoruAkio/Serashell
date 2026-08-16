@@ -39,8 +39,11 @@ PanelWindow {
     property var clipboardEntries: []
     property string clipboardQuery: ""
     property int clipboardIndex: 0
-    property bool copiedNotice: false
-    property string copiedNoticeText: "󰄬  Copied!"
+    property bool pillNotification: false
+    property string pillNotificationIcon: ""
+    property string pillNotificationText: ""
+    property color pillNotificationColor: Local.Theme.danger
+    property real pillNotificationWidth: 110
     property int clipboardPreviewVersion: 0
     readonly property string clipboardPreviewDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-clipboard"
     property bool launcherOpen: false
@@ -55,6 +58,7 @@ PanelWindow {
     property bool systemOpen: false
     property bool emojiPickerOpen: false
     property bool recorderOpen: false
+    property bool recording: false
     property var recordActions: []
     property int recordIndex: 0
     property int emojiIndex: 0
@@ -65,7 +69,7 @@ PanelWindow {
     property date calendarMonth: new Date()
     readonly property var filteredClipboard: filterClipboard(clipboardQuery)
     readonly property var selectedClipboard: filteredClipboard.length > 0 ? filteredClipboard[clipboardIndex] : null
-    readonly property bool expanded: panelOpen || ((hasMedia || idleMedia) && islandHover.hovered && !copiedNotice)
+    readonly property bool expanded: panelOpen || ((hasMedia || idleMedia) && islandHover.hovered && !pillNotification)
     readonly property bool panelOpen: themePickerOpen || wallpaperPickerOpen || clipboardPickerOpen || launcherOpen || calendarOpen || systemOpen || emojiPickerOpen || recorderOpen
 
     function closePanels() {
@@ -78,6 +82,16 @@ PanelWindow {
         emojiPickerOpen = false
         recorderOpen = false
         emojiEntries = []
+    }
+
+    // @note short-lived pill notification; width is the extra width beyond the idle pill
+    function showPillNotification(text, icon, color, width) {
+        pillNotificationText = text
+        pillNotificationIcon = icon !== undefined ? icon : ""
+        pillNotificationColor = color !== undefined ? color : Local.Theme.danger
+        pillNotificationWidth = width !== undefined ? width : 110
+        pillNotification = true
+        pillNotificationTimer.restart()
     }
 
     function togglePanel(panel) {
@@ -115,13 +129,17 @@ PanelWindow {
         if (!action)
             return
         if (action.mode === "stop") {
+            root.recording = false
             Quickshell.execDetached({
-                command: ["sh", "-c", "pkill -INT -x wf-recorder && notify-send -a 'Serashell Recorder' -r 9977 'Recording stopped' 'Finalizing video…'", "serashell-recorder"]
+                command: ["sh", "-c", "pkill -INT -x wf-recorder", "serashell-recorder"]
             })
+            root.showPillNotification("Recording Stopped", "󰻃", Local.Theme.danger, 70)
         } else {
+            root.recording = true
             Quickshell.execDetached({
-                command: ["sh", "-c", "mkdir -p \"$HOME/Videos/Screenrecord\"; output=\"$HOME/Videos/Screenrecord/$(date '+%H-%M-%S_%d-%m-%y').mp4\"; audio=--audio; if command -v pactl >/dev/null; then source=\"$(pactl get-default-sink 2>/dev/null).monitor\"; [ -n \"$source\" ] && audio=\"--audio=$source\"; fi; setsid -f wf-recorder -o \"$1\" \"$audio\" -f \"$output\" </dev/null >\"${XDG_RUNTIME_DIR:-/tmp}/serashell-recording.log\" 2>&1; sleep 0.3; pgrep -x wf-recorder >/dev/null && notify-send -a 'Serashell Recorder' -r 9977 'Recording started' \"Monitor $1\" || notify-send -a 'Serashell Recorder' -r 9977 -u critical 'Recording failed' 'See serashell-recording.log'", "serashell-recorder", action.value]
+                command: ["sh", "-c", "mkdir -p \"$HOME/Videos/Screenrecord\"; output=\"$HOME/Videos/Screenrecord/$(date '+%H-%M-%S_%d-%m-%y').mp4\"; audio=--audio; if command -v pactl >/dev/null; then source=\"$(pactl get-default-sink 2>/dev/null).monitor\"; [ -n \"$source\" ] && audio=\"--audio=$source\"; fi; setsid -f wf-recorder -o \"$1\" \"$audio\" -f \"$output\" </dev/null >\"${XDG_RUNTIME_DIR:-/tmp}/serashell-recording.log\" 2>&1; sleep 0.3; pgrep -x wf-recorder >/dev/null", "serashell-recorder", action.value]
             })
+            root.showPillNotification("Recording Started", "󰻃", Local.Theme.danger, 70)
         }
         closePanels()
     }
@@ -145,6 +163,7 @@ PanelWindow {
             }
         }
     }
+
 
     function applyTheme(mode) {
         themeProcess.mode = mode
@@ -320,9 +339,7 @@ PanelWindow {
         clipboardCopyProcess.command = ["sh", "-c", "printf '%s' \"$1\" | cliphist decode | wl-copy", "clipboard-copy", entry.id]
         clipboardCopyProcess.running = true
         clipboardPickerOpen = false
-        copiedNoticeText = "󰄬  Copied!"
-        copiedNotice = true
-        copiedNoticeTimer.restart()
+        showPillNotification("Copied!", "󰄬", Local.Theme.success, 110)
     }
 
     function openEmojiPicker() {
@@ -346,9 +363,7 @@ PanelWindow {
         emojiCopyProcess.command = ["sh", "-c", "printf '%s' \"$1\" | wl-copy", "emoji-copy", entry.emoji]
         emojiCopyProcess.running = true
         emojiPickerOpen = false
-        copiedNoticeText = "󰄬  Emoji Copied!"
-        copiedNotice = true
-        copiedNoticeTimer.restart()
+        showPillNotification("Emoji Copied!", "󰄬", Local.Theme.success, 150)
     }
 
     Process { id: emojiCopyProcess }
@@ -415,9 +430,9 @@ PanelWindow {
     }
 
     Timer {
-        id: copiedNoticeTimer
+        id: pillNotificationTimer
         interval: 1500
-        onTriggered: root.copiedNotice = false
+        onTriggered: root.pillNotification = false
     }
 
     Timer {
@@ -574,6 +589,7 @@ PanelWindow {
         border.width: Local.Settings.notchMode ? 0 : 1
         clip: true
 
+        readonly property real idleWidth: Local.Settings.notchMode || root.hasMedia ? 260 : 180
         readonly property real targetWidth: {
             if (root.systemOpen) return 520
             if (root.launcherOpen) return 520 * Local.Settings.launcherPanelSize / 100
@@ -583,11 +599,11 @@ PanelWindow {
             if (root.calendarOpen) return 340
             if (root.wallpaperPickerOpen) return 460 * Local.Settings.wallpaperPanelSize / 100
             if (root.themePickerOpen) return 340 * Local.Settings.themePanelSize / 100
-            if (root.copiedNotice) return root.copiedNoticeText.includes("Emoji") ? 170 : 132
+            if (root.pillNotification) return idleWidth + root.pillNotificationWidth
             if (Local.Settings.notchMode) return root.expanded ? 420 * Local.Settings.mediaPanelSize / 100 : 260
             if (root.hasMedia) return root.expanded ? 420 * Local.Settings.mediaPanelSize / 100 : 260
-            if (root.idleMedia) return root.expanded ? 420 * Local.Settings.mediaPanelSize / 100 : 92
-            return 92
+            if (root.idleMedia) return root.expanded ? 420 * Local.Settings.mediaPanelSize / 100 : 180
+            return 180
         }
         readonly property real targetHeight: {
             if (root.systemOpen) return 340
@@ -600,9 +616,8 @@ PanelWindow {
             if (root.themePickerOpen) return 100 * Local.Settings.themePanelSize / 100
             if (Local.Settings.notchMode) return root.expanded ? 180 * Local.Settings.mediaPanelSize / 100 : 36
             if (root.hasMedia) return root.expanded ? 180 * Local.Settings.mediaPanelSize / 100 : 30
-            if (root.idleMedia) return root.expanded ? 180 * Local.Settings.mediaPanelSize / 100 : 24
-            if (root.copiedNotice) return 28
-            return 24
+            if (root.idleMedia) return root.expanded ? 180 * Local.Settings.mediaPanelSize / 100 : 30
+            return 30
         }
         readonly property real morphCloseness: {
             const distance = Math.max(Math.abs(width - targetWidth), Math.abs(height - targetHeight))
@@ -611,7 +626,7 @@ PanelWindow {
 
         Behavior on width {
             NumberAnimation {
-                duration: root.copiedNotice ? 150 : (root.themePickerOpen ? 250 : 420)
+                duration: root.pillNotification ? 150 : (root.themePickerOpen ? 250 : 420)
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: [0.16, 1, 0.3, 1, 1, 1]
             }
@@ -619,7 +634,7 @@ PanelWindow {
 
         Behavior on height {
             NumberAnimation {
-                duration: root.copiedNotice ? 150 : (root.themePickerOpen ? 250 : 420)
+                duration: root.pillNotification ? 150 : (root.themePickerOpen ? 250 : 420)
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: [0.16, 1, 0.3, 1, 1, 1]
             }
@@ -692,15 +707,14 @@ PanelWindow {
         }
 
         Text {
-            anchors.horizontalCenter: Local.Settings.notchMode ? undefined : parent.horizontalCenter
-            anchors.left: Local.Settings.notchMode ? parent.left : undefined
-            anchors.leftMargin: Local.Settings.notchMode ? 12 : 0
+            anchors.left: parent.left
+            anchors.leftMargin: 12
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.hasMedia && !root.expanded && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.copiedNotice
-            text: Local.Settings.notchMode ? "" : "●  ●"
-            color: Local.Theme.subtleMuted
+            visible: !root.hasMedia && !root.expanded && !root.themePickerOpen && !root.wallpaperPickerOpen && !root.clipboardPickerOpen && !root.launcherOpen && !root.calendarOpen && !root.systemOpen && !root.emojiPickerOpen && !root.pillNotification
+            text: ""
+            color: root.recording ? Local.Theme.danger : Local.Theme.subtleMuted
             font.family: Local.Theme.font
-            font.pixelSize: Local.Settings.notchMode ? 16 : 10
+            font.pixelSize: 16
         }
 
         Art {
@@ -714,7 +728,7 @@ PanelWindow {
             artSource: root.player ? root.player.trackArtUrl : ""
             cornerRadius: width / 2
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.panelOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.panelOpen && !root.pillNotification
 
             Behavior on opacity {
                 NumberAnimation { duration: 120 }
@@ -728,7 +742,7 @@ PanelWindow {
             anchors.rightMargin: 9
             anchors.verticalCenter: compactArt.verticalCenter
             opacity: root.expanded ? 0 : 1
-            visible: root.hasMedia && !root.panelOpen && !root.copiedNotice
+            visible: root.hasMedia && !root.panelOpen && !root.pillNotification
             text: root.player ? root.player.trackTitle : ""
             color: Local.Theme.text
             font.family: Local.Theme.font
@@ -750,7 +764,7 @@ PanelWindow {
             height: parent.height - anchors.topMargin
             readonly property real contentScale: Math.min(parent.width / 420, parent.height / 180)
             opacity: root.expanded ? island.morphCloseness : 0
-            visible: (root.hasMedia || root.idleMedia) && !root.panelOpen && !root.copiedNotice
+            visible: (root.hasMedia || root.idleMedia) && !root.panelOpen && !root.pillNotification
 
             Behavior on opacity {
                 NumberAnimation { duration: 50 }
@@ -910,14 +924,30 @@ PanelWindow {
         }
 
 
-        Text {
-            anchors.centerIn: parent
-            visible: root.copiedNotice && !root.clipboardPickerOpen && !root.emojiPickerOpen
-            text: root.copiedNoticeText
-            color: Local.Theme.text
-            font.family: Local.Theme.font
-            font.pixelSize: 11
-            font.bold: true
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.pillNotification && !root.clipboardPickerOpen && !root.emojiPickerOpen
+            spacing: 8
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.pillNotificationIcon !== ""
+                text: root.pillNotificationIcon
+                color: root.pillNotificationColor
+                font.family: Local.Theme.font
+                font.pixelSize: 15
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.pillNotificationText
+                color: Local.Theme.text
+                font.family: Local.Theme.font
+                font.pixelSize: 11
+                font.bold: true
+            }
         }
     }
 }
