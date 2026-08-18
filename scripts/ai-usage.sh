@@ -8,7 +8,16 @@ emit() {
         --argjson yesterdayCost "${8:-0}" --argjson yesterdayTokens "${9:-0}" \
         --arg plan "${10:-}" \
         --argjson accountOnly "${11:-false}" \
-        '{id:$id,label:$label,used:($used|round),remaining:(100-($used|round)),todayCost:$todayCost,monthCost:$monthCost,todayTokens:$todayTokens,monthTokens:$monthTokens,yesterdayCost:$yesterdayCost,yesterdayTokens:$yesterdayTokens,plan:$plan,accountOnly:$accountOnly}'
+        --argjson resetsAt "${12:-0}" \
+        '{id:$id,label:$label,used:($used|round),remaining:(100-($used|round)),todayCost:$todayCost,monthCost:$monthCost,todayTokens:$todayTokens,monthTokens:$monthTokens,yesterdayCost:$yesterdayCost,yesterdayTokens:$yesterdayTokens,plan:$plan,accountOnly:$accountOnly,resetsAt:$resetsAt}'
+}
+
+# @note iso8601 (or anything date -d parses) to epoch seconds, 0 when missing/unparseable
+to_epoch() {
+    local epoch
+    [[ -n "${1:-}" ]] || { printf '0'; return; }
+    epoch=$(date -d "$1" +%s 2>/dev/null) || epoch=0
+    printf '%s' "$epoch"
 }
 
 format_plan() {
@@ -25,8 +34,8 @@ format_plan() {
 }
 
 if [[ ${1:-} == --self-test ]]; then
-    emit codex Session 41.4 1.25 7.5 1000 5000 0.75 600 Pro |
-        jq -e '.id == "codex" and .used == 41 and .remaining == 59 and .plan == "Pro" and .monthCost == 7.5 and .monthTokens == 5000 and .yesterdayCost == 0.75 and .yesterdayTokens == 600' >/dev/null
+    emit codex Session 41.4 1.25 7.5 1000 5000 0.75 600 Pro false 1760000000 |
+        jq -e '.id == "codex" and .used == 41 and .remaining == 59 and .plan == "Pro" and .monthCost == 7.5 and .monthTokens == 5000 and .yesterdayCost == 0.75 and .yesterdayTokens == 600 and .resetsAt == 1760000000' >/dev/null
     exit
 fi
 
@@ -36,7 +45,7 @@ cache_seconds=${2:-300}
 force=${3:-}
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/serashell/ai-usage
 cache_key=$(printf '%s' "$1" | tr -cd 'a-zA-Z0-9,_-')
-usage_cache=$cache_dir/usage-v10-$cache_key.jsonl
+usage_cache=$cache_dir/usage-v11-$cache_key.jsonl
 pricing_cache=$cache_dir/pricing-litellm.json
 supplement_cache=$cache_dir/pricing-openusage.json
 mkdir -p "$cache_dir"
@@ -242,7 +251,7 @@ PY
 }
 
 claude() {
-    local file token body session weekly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
+    local file token body session weekly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens session_reset weekly_reset
     file=$HOME/.claude/.credentials.json
     [[ -r "$file" ]] || return
     token=$(jq -r '.claudeAiOauth.accessToken // empty' "$file")
@@ -250,14 +259,16 @@ claude() {
     body=$(request "$token" https://api.anthropic.com/api/oauth/usage GET 'Accept: application/json' 'anthropic-beta: oauth-2025-04-20' 'User-Agent: claude-code/2.1.69')
     session=$(jq -r '.five_hour.utilization // empty' <<< "$body")
     weekly=$(jq -r '.seven_day.utilization // empty' <<< "$body")
+    session_reset=$(to_epoch "$(jq -r '.five_hour.resets_at // empty' <<< "$body")")
+    weekly_reset=$(to_epoch "$(jq -r '.seven_day.resets_at // empty' <<< "$body")")
     plan=$(format_plan "$(jq -r '.claudeAiOauth.subscriptionType // empty' "$file")")
     read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(claude_spend)"
-    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
-    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
+    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$session_reset"
+    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit claude Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$weekly_reset"
 }
 
 codex() {
-    local file token account body session weekly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
+    local file token account body session weekly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens session_reset weekly_reset
     file=$HOME/.codex/auth.json
     [[ -r "$file" ]] || file=$HOME/.config/codex/auth.json
     [[ -r "$file" ]] || return
@@ -267,16 +278,25 @@ codex() {
     body=$(request "$token" https://chatgpt.com/backend-api/wham/usage GET 'Accept: application/json' "ChatGPT-Account-Id: $account")
     session=$(jq -r '.rate_limit.primary_window.used_percent // empty' <<< "$body")
     weekly=$(jq -r '.rate_limit.secondary_window.used_percent // empty' <<< "$body")
+    session_reset=$(codex_window_reset "$(jq -c '.rate_limit.primary_window // {}' <<< "$body")")
+    weekly_reset=$(codex_window_reset "$(jq -c '.rate_limit.secondary_window // {}' <<< "$body")")
     plan=$(format_plan "$(jq -r '.plan_type // empty' <<< "$body")")
     read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(codex_spend)"
-    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
-    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
+    [[ "$session" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Session "$session" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$session_reset"
+    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit codex Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$weekly_reset"
+}
+
+# @note codex windows carry reset_at (epoch seconds) or reset_after_seconds
+codex_window_reset() {
+    jq -r 'if (.reset_at // empty) != null then (.reset_at | floor)
+           elif (.reset_after_seconds // empty) != null then (now + .reset_after_seconds | floor)
+           else 0 end' <<< "$1" 2>/dev/null || printf '0'
 }
 
 cursor() {
     command -v sqlite3 >/dev/null || return
     command -v python >/dev/null || return
-    local file token body plan_body total auto api plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
+    local file token body plan_body total auto api plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens cycle_reset
     for file in "${XDG_CONFIG_HOME:-$HOME/.config}/Cursor/User/globalStorage/state.vscdb" "${XDG_CONFIG_HOME:-$HOME/.config}/cursor/User/globalStorage/state.vscdb"; do
         [[ -r "$file" ]] && break
     done
@@ -288,11 +308,13 @@ cursor() {
     total=$(jq -r '.planUsage.totalPercentUsed // empty' <<< "$body")
     auto=$(jq -r '.planUsage.autoPercentUsed // empty' <<< "$body")
     api=$(jq -r '.planUsage.apiPercentUsed // empty' <<< "$body")
+    # @note billingCycleEnd is an epoch-milliseconds string at the response root
+    cycle_reset=$(jq -r '((.billingCycleEnd // 0) | tonumber) / 1000 | floor' <<< "$body" 2>/dev/null || printf '0')
     plan=$(format_plan "$(jq -r '.planInfo.planName // empty' <<< "$plan_body")")
     read -r today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens <<< "$(cursor_spend "$token")"
-    [[ "$total" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Total "$total" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
-    [[ "$auto" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Auto "$auto" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
-    [[ "$api" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor API "$api" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"
+    [[ "$total" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Total "$total" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$cycle_reset"
+    [[ "$auto" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor Auto "$auto" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$cycle_reset"
+    [[ "$api" =~ ^[0-9]+([.][0-9]+)?$ ]] && emit cursor API "$api" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$cycle_reset"
 }
 
 opencode_spend() {
@@ -308,7 +330,7 @@ opencode_spend() {
 }
 
 opencode() {
-    local data_dir file go_key api_key body rolling weekly monthly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens
+    local data_dir file go_key api_key body rolling weekly monthly plan today_cost month_cost today_tokens month_tokens yesterday_cost yesterday_tokens rolling_reset weekly_reset monthly_reset
     data_dir=${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}
     file=$data_dir/auth.json
     [[ -r "$file" ]] || return
@@ -323,30 +345,33 @@ opencode() {
     rolling=$(jq -r '.usage.rolling.percent // empty' <<< "$body")
     weekly=$(jq -r '.usage.weekly.percent // empty' <<< "$body")
     monthly=$(jq -r '.usage.monthly.percent // empty' <<< "$body")
+    rolling_reset=$(to_epoch "$(jq -r '.usage.rolling.resetsAt // empty' <<< "$body")")
+    weekly_reset=$(to_epoch "$(jq -r '.usage.weekly.resetsAt // empty' <<< "$body")")
+    monthly_reset=$(to_epoch "$(jq -r '.usage.monthly.resetsAt // empty' <<< "$body")")
     plan="API (Go)"
     local emitted=0
-    [[ "$rolling" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Session "$rolling" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"; emitted=1; }
-    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"; emitted=1; }
-    [[ "$monthly" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Monthly "$monthly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan"; emitted=1; }
+    [[ "$rolling" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Session "$rolling" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$rolling_reset"; emitted=1; }
+    [[ "$weekly" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Weekly "$weekly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$weekly_reset"; emitted=1; }
+    [[ "$monthly" =~ ^[0-9]+([.][0-9]+)?$ ]] && { emit opencode Monthly "$monthly" "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "$plan" false "$monthly_reset"; emitted=1; }
     # @note go key present but no active subscription windows — still show local spend
     (( emitted )) || emit opencode Usage 0 "$today_cost" "$month_cost" "$today_tokens" "$month_tokens" "$yesterday_cost" "$yesterday_tokens" "API (Free)" true
 }
 
 # @note pooled quota buckets from RetrieveUserQuotaSummary (openusage parity)
 antigravity_summary_emit() {
-    local body=$1 plan=$2 emitted=0 used
+    local body=$1 plan=$2 emitted=0 used reset_iso
     local -a order=(gemini-5h:Session gemini-weekly:Weekly 3p-5h:Claude 3p-weekly:"Claude Weekly")
     local spec bucket label
     for spec in "${order[@]}"; do
         bucket=${spec%%:*}
         label=${spec#*:}
-        used=$(jq -r --arg id "$bucket" '
+        read -r used reset_iso <<< "$(jq -r --arg id "$bucket" '
             ((.response.groups // .groups // []) | map(.buckets // []) | add // [])
             | map(select(.bucketId == $id and (.remainingFraction | type == "number")))
-            | first | if . == null then empty else ((1 - .remainingFraction) * 100) end
-        ' <<< "$body" 2>/dev/null) || true
+            | first | if . == null then empty else [((1 - .remainingFraction) * 100), (.resetTime // "")] | @tsv end
+        ' <<< "$body" 2>/dev/null)" || true
         [[ "$used" =~ ^[0-9]+([.][0-9]+)?$ ]] || continue
-        emit antigravity "$label" "$used" 0 0 0 0 0 0 "$plan"
+        emit antigravity "$label" "$used" 0 0 0 0 0 0 "$plan" false "$(to_epoch "$reset_iso")"
         emitted=1
     done
     (( emitted ))
@@ -354,25 +379,25 @@ antigravity_summary_emit() {
 
 antigravity_models_emit() {
     local body=$1 plan=$2
-    local gemini claude
-    read -r gemini claude <<< "$(jq -r '
+    local gemini gemini_reset claude claude_reset
+    read -r gemini gemini_reset claude claude_reset <<< "$(jq -r '
         [.models // {} | to_entries[]
           | select(.value.isInternal != true)
           | ((.value.displayName // .value.label // "") | ascii_downcase) as $label
           | select($label != "")
-          | [($label | test("gemini")), (.value.quotaInfo.remainingFraction // 0)]]
-        | reduce .[] as $row ({g:null,c:null};
-            if $row[0] then .g = ([.g, $row[1]] | map(select(. != null)) | min)
-            else .c = ([.c, $row[1]] | map(select(. != null)) | min) end)
-        | [(.g // empty), (.c // empty)] | @tsv
+          | [($label | test("gemini")), (.value.quotaInfo.remainingFraction // 0), (.value.quotaInfo.resetTime // "")]]
+        | reduce .[] as $row ({g:null,gr:"",c:null,cr:""};
+            if $row[0] then (if .g == null or $row[1] < .g then {g:$row[1],gr:$row[2],c:.c,cr:.cr} else . end)
+            else (if .c == null or $row[1] < .c then {c:$row[1],cr:$row[2],g:.g,gr:.gr} else . end) end)
+        | [(.g // empty), (.gr // ""), (.c // empty), (.cr // "")] | @tsv
     ' <<< "$body" 2>/dev/null)"
     local emitted=0
     if [[ "$gemini" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-        emit antigravity Session "$(jq -n --argjson f "$gemini" '(1 - $f) * 100')" 0 0 0 0 0 0 "$plan"
+        emit antigravity Session "$(jq -n --argjson f "$gemini" '(1 - $f) * 100')" 0 0 0 0 0 0 "$plan" false "$(to_epoch "$gemini_reset")"
         emitted=1
     fi
     if [[ "$claude" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-        emit antigravity Claude "$(jq -n --argjson f "$claude" '(1 - $f) * 100')" 0 0 0 0 0 0 "$plan"
+        emit antigravity Claude "$(jq -n --argjson f "$claude" '(1 - $f) * 100')" 0 0 0 0 0 0 "$plan" false "$(to_epoch "$claude_reset")"
         emitted=1
     fi
     (( emitted ))

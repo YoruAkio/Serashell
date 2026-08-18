@@ -68,6 +68,18 @@ PanelWindow {
         return Math.round(value) + " tokens"
     }
 
+    // @note live countdown against clockNow (ticks every 10s); epoch is seconds, 0 = unknown
+    function resetLabel(epoch) {
+        if (!epoch) return ""
+        const diff = epoch * 1000 - clockNow
+        if (diff <= 0) return "resetting…"
+        const minutes = Math.floor(diff / 60000)
+        if (minutes < 60) return "resets in " + minutes + "m"
+        const hours = Math.floor(minutes / 60)
+        if (hours < 24) return "resets in " + hours + "h " + (minutes % 60) + "m"
+        return "resets in " + Math.floor(hours / 24) + "d " + (hours % 24) + "h"
+    }
+
     function close() {
         open = false
         closeTimer.restart()
@@ -220,7 +232,7 @@ PanelWindow {
                                 for (let i = 0; i < modelData.metrics.length; i++) {
                                     if (i > 0)
                                         total += 8
-                                    total += modelData.metrics[i].accountOnly ? 14 : 44
+                                    total += modelData.metrics[i].accountOnly ? 14 : 56
                                 }
                                 if (modelData.metrics.length > 0)
                                     total += 8
@@ -291,12 +303,13 @@ PanelWindow {
                                         id: metricRow
                                         required property var modelData
                                         width: parent.width
-                                        height: modelData.accountOnly ? 14 : 44
+                                        height: modelData.accountOnly ? 14 : 56
                                         Text { anchors.left: parent.left; anchors.top: parent.top; text: metricRow.modelData.label; color: Local.Theme.text; font.family: Local.Theme.font; font.pixelSize: 12; font.bold: true }
                                         Text { anchors.right: parent.right; anchors.top: parent.top; text: metricRow.modelData.accountOnly ? "Signed in" : metricRow.modelData.remaining + "% left"; color: Local.Theme.muted; font.family: Local.Theme.font; font.pixelSize: 11 }
                                         Rectangle { visible: !metricRow.modelData.accountOnly; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 20; height: 5; radius: 3; color: Local.Theme.accent }
                                         Rectangle { visible: !metricRow.modelData.accountOnly; anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 20; width: parent.width * metricRow.modelData.used / 100; height: 5; radius: 3; color: Local.Theme.highlight }
                                         Text { visible: !metricRow.modelData.accountOnly; anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 30; text: metricRow.modelData.used + "% used"; color: Local.Theme.subtleMuted; font.family: Local.Theme.font; font.pixelSize: 10 }
+                                        Text { visible: !metricRow.modelData.accountOnly && root.resetLabel(metricRow.modelData.resetsAt || 0) !== ""; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 30; text: root.resetLabel(metricRow.modelData.resetsAt || 0); color: Local.Theme.subtleMuted; font.family: Local.Theme.font; font.pixelSize: 10 }
                                     }
                                 }
 
