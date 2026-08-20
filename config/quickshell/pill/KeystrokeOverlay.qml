@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -25,14 +24,17 @@ PanelWindow {
     readonly property color boxAccent: Local.Theme.light ? "#DFC8B1" : "#44373A"
     readonly property color boxMuted: Local.Theme.light ? "#AA9D8A" : "#625458"
 
-    readonly property real scaleFactor: Local.Settings.keystrokeSize / 100
+    readonly property real scaleFactor: Local.Settings.keystrokeSize / 60
     readonly property int fadeTimeMs: Local.Settings.keystrokeFadeTime * 1000
     readonly property bool fullMode: Local.Settings.keystrokeMode === "full"
 
-    // @note special keys drawn as svg badges instead of text glyphs
-    function svgSource(key) {
-        const svgKeys = ["Tab", "Caps", "PgUp", "PgDn", "Home", "End", "Ins"]
-        return svgKeys.includes(key) ? "assets/key_" + key.toLowerCase() + ".svg" : ""
+    // @note only the current keybind asset set is used by the overlay
+    function keyIcon(key) {
+        const icons = {
+            Alt: "Alt", Backspace: "Backspace", Ctrl: "Ctrl", Enter: "Enter",
+            Esc: "Esc", Shift: "Shift", Super: "Super", Tab: "Tab"
+        }
+        return icons[key] ? "assets/Keybind" + icons[key] + ".svg" : ""
     }
 
     // @note state buffers
@@ -40,12 +42,19 @@ PanelWindow {
     property var activeModifiers: []
     // @note ordered modifier display list; released mods linger briefly before clearing
     property var shownModifiers: []
-    // @note chronological segments for full mode: {kind: "mod"|"special"|"text", key?}
+    // @note chronological segments for full mode: {kind, key, modifiers?}
     property var fullSegments: []
     property string activeSpecial: ""
     property real containerOpacity: 0
     property real containerScale: 1
     property int maxBufferLength: 40
+    property int pulseCounter: 0
+    property int latestPulse: 0
+    property bool animateLatestIcon: false
+    readonly property real modifierBadgeWidth: Math.round(62 * scaleFactor)
+    readonly property real specialKeyWidth: Math.round(62 * scaleFactor)
+    readonly property real keyIconMargin: Math.round(3 * scaleFactor)
+    readonly property real typedMaxWidth: Math.max(100, screenCanvas.width - 16 - shownModifiers.length * (modifierBadgeWidth + 8) - (activeSpecial.length > 0 ? specialKeyWidth + 8 : 0))
 
     function handleKeyPress(msg) {
         // @note reset fade timer on any key activity
@@ -63,7 +72,6 @@ PanelWindow {
                 let updated = activeModifiers.slice()
                 updated.push(key)
                 activeModifiers = updated
-                pushSegment("mod", key)
             }
             // @note linger list for separate mode
             if (!shownModifiers.includes(key)) {
@@ -82,14 +90,18 @@ PanelWindow {
                 fadeTimer.restart()
                 return
             }
+            activeSpecial = key
+            pushSegment("combo", { modifiers: activeModifiers.slice(), key: key })
+            specialClearTimer.restart()
+            fadeTimer.restart()
+            return
         }
 
-        // @note backspace appends one ⌫; consecutive presses collapse into the same icon
-        // ponytail: no String.trimEnd in quickshell's js engine, strip trailing spaces via regex
+        // @note standalone keys that have an icon use the current keybind asset set
         if (key === "Backspace") {
-            if (!textBuffer.replace(/\s+$/, "").endsWith("⌫")) {
-                appendChar(textBuffer.length > 0 && !textBuffer.endsWith(" ") ? " ⌫ " : "⌫ ")
-            }
+            activeSpecial = "Backspace"
+            pushSegment("special", "Backspace")
+            specialClearTimer.restart()
             fadeTimer.restart()
             return
         }
@@ -103,8 +115,8 @@ PanelWindow {
         }
 
         if (key === "Enter") {
-            activeSpecial = "↵"
-            pushSegment("special", "↵")
+            activeSpecial = "Enter"
+            pushSegment("special", "Enter")
             specialClearTimer.restart()
             fadeTimer.restart()
             return
@@ -130,15 +142,6 @@ PanelWindow {
             return
         }
 
-        // @note if modifiers are active (like Ctrl+C, Super+D, Alt+F4), show as combo
-        if (activeModifiers.length > 0) {
-            activeSpecial = key
-            pushSegment("special", key)
-            specialClearTimer.restart()
-            fadeTimer.restart()
-            return
-        }
-
         // @note regular typing: append character into unified buffer
         if (isChar || key.length === 1) {
             activeSpecial = ""
@@ -154,6 +157,7 @@ PanelWindow {
     }
 
     function appendChar(ch) {
+        animateLatestIcon = false
         let buf = textBuffer + ch
         if (buf.length > maxBufferLength) {
             buf = buf.slice(buf.length - maxBufferLength)
@@ -171,11 +175,28 @@ PanelWindow {
         }
     }
 
-    // @note full mode records keys in press order so "d then shift" renders as d [shift]
+    // @note full mode records typing, standalone keys, and modifier combinations in order
     function pushSegment(kind, key) {
         if (!fullMode) return
         let segs = fullSegments.slice()
-        segs.push({ kind: kind, key: key })
+        const last = segs[segs.length - 1]
+        const pulse = ++pulseCounter
+        latestPulse = pulse
+        animateLatestIcon = true
+        if (kind === "combo" && last && last.kind === "combo" && last.key === key.key && last.modifiers.join(",") === key.modifiers.join(",")) {
+            segs[segs.length - 1] = { kind: kind, key: key.key, modifiers: key.modifiers, pulse: pulse }
+            fullSegments = segs
+            return
+        }
+        if (kind === "special" && last && last.kind === "special" && last.key === key) {
+            segs[segs.length - 1] = { kind: kind, key: key, pulse: pulse }
+            fullSegments = segs
+            return
+        }
+        if (kind === "combo")
+            segs.push({ kind: kind, key: key.key, modifiers: key.modifiers, pulse: pulse })
+        else
+            segs.push({ kind: kind, key: key, pulse: pulse })
         fullSegments = segs
     }
 
@@ -303,7 +324,7 @@ PanelWindow {
                 NumberAnimation { duration: 140; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
             }
 
-            // @note full mode: chronological segments in one compact box, modifiers as svg icons
+            // @note full mode: chronological segments in one compact box
             Rectangle {
                 visible: root.fullMode && root.fullSegments.length > 0
                 // @note cap to the screen so a long buffer never stretches the box full width
@@ -317,8 +338,8 @@ PanelWindow {
 
                 Row {
                     id: fullRow
-                    // @note position via x/y, not anchors, so the box width can depend on the row width
-                    x: (parent.width - width) / 2
+                    // @note overflow stays pinned to the newest keystrokes on the right
+                    x: Math.min(Math.round(10 * root.scaleFactor), parent.width - width - Math.round(10 * root.scaleFactor))
                     y: (parent.height - height) / 2
                     spacing: Math.round(6 * root.scaleFactor)
 
@@ -327,48 +348,133 @@ PanelWindow {
 
                         delegate: Item {
                             required property var modelData
-                            // @note modifiers and badged specials (tab, caps, pgup...) render as svg
-                            readonly property string svg: modelData.kind === "mod" ? "assets/key_" + modelData.key.toLowerCase() + ".svg" : root.svgSource(modelData.key)
+                            readonly property bool isCombo: modelData.kind === "combo"
+                            readonly property string svg: isCombo ? "" : root.keyIcon(modelData.key)
                             readonly property bool isSvg: svg.length > 0
-                            // @note compact icon width keeps the combined box tight
-                            width: isSvg ? Math.round(44 * root.scaleFactor) : segText.implicitWidth
+                            width: isCombo ? comboRow.width : isSvg ? Math.round(44 * root.scaleFactor) : segText.implicitWidth
                             height: Math.round(40 * root.scaleFactor)
 
                             Image {
                                 id: segSvg
+                                property int pulse: modelData.pulse || 0
+                                property bool shouldPulse: pulse === root.latestPulse
                                 anchors.fill: parent
-                                anchors.margins: Math.round(2 * root.scaleFactor)
+                                anchors.margins: root.keyIconMargin
                                 source: isSvg ? parent.svg : ""
                                 sourceSize: Qt.size(width, height)
                                 fillMode: Image.PreserveAspectFit
-                                visible: false
-                            }
-
-                            MultiEffect {
                                 visible: isSvg
-                                anchors.fill: segSvg
-                                source: segSvg
-                                colorization: 1.0
-                                colorizationColor: root.boxText
+                                transform: Translate { id: segSvgOffset; y: 0 }
+                                onShouldPulseChanged: if (shouldPulse && root.animateLatestIcon && visible) segSvgEntrance.restart()
+                                Component.onCompleted: if (shouldPulse && root.animateLatestIcon && visible) segSvgEntrance.start()
+
+                                ParallelAnimation {
+                                    id: segSvgEntrance
+                                    NumberAnimation { target: segSvg; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: segSvgOffset; property: "y"; from: Math.round(8 * root.scaleFactor); to: 0; duration: 160; easing.type: Easing.OutCubic }
+                                }
                             }
 
                             Text {
                                 id: segText
-                                visible: !isSvg
+                                visible: !isSvg && !parent.isCombo
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.key
                                 color: root.boxText
                                 font.family: Local.Theme.font
-                                font.pixelSize: Math.round(16 * root.scaleFactor)
+                                font.pixelSize: Math.round(11 * root.scaleFactor)
                                 font.letterSpacing: 0.5
                                 font.bold: true
+                            }
+
+                            Row {
+                                id: comboRow
+                                visible: parent.isCombo
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: Math.round(5 * root.scaleFactor)
+                                height: Math.round(32 * root.scaleFactor)
+
+                                Repeater {
+                                    model: modelData.modifiers
+
+                                    delegate: Item {
+                                        required property string modelData
+                                        required property int index
+                                        readonly property bool hasNext: index < comboRow.parent.modelData.modifiers.length - 1
+                                        width: comboModifierIcon.width + (hasNext ? comboModifierPlus.implicitWidth + Math.round(5 * root.scaleFactor) : 0)
+                                        height: comboRow.height
+
+                                        Image {
+                                            id: comboModifierIcon
+                                            property int pulse: comboRow.parent.modelData.pulse || 0
+                                            property bool shouldPulse: pulse === root.latestPulse
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: Math.round(30 * root.scaleFactor)
+                                            height: width
+                                            source: root.keyIcon(modelData)
+                                            fillMode: Image.PreserveAspectFit
+                                            transform: Translate { id: comboModifierOffset; y: 0 }
+                                            onShouldPulseChanged: if (shouldPulse && root.animateLatestIcon) comboModifierEntrance.restart()
+                                            Component.onCompleted: if (shouldPulse && root.animateLatestIcon) comboModifierEntrance.start()
+
+                                            ParallelAnimation {
+                                                id: comboModifierEntrance
+                                                NumberAnimation { target: comboModifierIcon; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
+                                                NumberAnimation { target: comboModifierOffset; property: "y"; from: Math.round(8 * root.scaleFactor); to: 0; duration: 160; easing.type: Easing.OutCubic }
+                                            }
+                                        }
+
+                                        Text {
+                                            id: comboModifierPlus
+                                            visible: parent.hasNext
+                                            anchors.left: comboModifierIcon.right
+                                            anchors.leftMargin: Math.round(5 * root.scaleFactor)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "+"
+                                            color: root.boxText
+                                            font.family: Local.Theme.font
+                                            font.pixelSize: Math.round(11 * root.scaleFactor)
+                                            font.bold: true
+                                        }
+                                    }
+                                }
+
+                                Item {
+                                    width: comboPlus.implicitWidth
+                                    height: comboRow.height
+
+                                    Text {
+                                        id: comboPlus
+                                        anchors.centerIn: parent
+                                        text: "+"
+                                        color: root.boxText
+                                        font.family: Local.Theme.font
+                                        font.pixelSize: Math.round(11 * root.scaleFactor)
+                                        font.bold: true
+                                    }
+                                }
+
+                                Item {
+                                    width: comboKey.implicitWidth
+                                    height: comboRow.height
+
+                                    Text {
+                                        id: comboKey
+                                        anchors.centerIn: parent
+                                        text: modelData.key
+                                        color: root.boxText
+                                        font.family: Local.Theme.font
+                                        font.pixelSize: Math.round(11 * root.scaleFactor)
+                                        font.bold: true
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // @note active modifier badges (Ctrl, Alt, Super, Shift, Fn)
+            // @note active modifier badges
             Repeater {
                 model: root.shownModifiers
 
@@ -379,15 +485,15 @@ PanelWindow {
                     visible: !root.fullMode
 
                     // @note uniform width so every modifier svg renders at the same height
-                    readonly property real modWidth: Math.round(62 * root.scaleFactor)
+                    readonly property real modWidth: root.modifierBadgeWidth
                     readonly property real modHeight: Math.round(50 * root.scaleFactor)
-                    readonly property string svgName: modelData.toLowerCase()
-
-                    width: modWidth
+                    readonly property bool hasNext: index < root.shownModifiers.length - 1
+                    width: modWidth + (hasNext ? modPlus.implicitWidth + Math.round(8 * root.scaleFactor) : 0)
                     height: modHeight
 
                     Rectangle {
-                        anchors.fill: parent
+                        width: modDelegate.modWidth
+                        height: parent.height
                         radius: Math.round(12 * root.scaleFactor)
                         color: root.boxBg
                         border.color: root.boxBorder
@@ -396,28 +502,43 @@ PanelWindow {
                         Image {
                             id: modSvg
                             anchors.fill: parent
-                            anchors.margins: Math.round(2 * root.scaleFactor)
-                            source: "assets/key_" + modDelegate.svgName + ".svg"
+                            anchors.margins: root.keyIconMargin
+                            source: root.keyIcon(modDelegate.modelData)
                             sourceSize: Qt.size(width, height)
                             fillMode: Image.PreserveAspectFit
-                            visible: false
-                        }
-
-                        MultiEffect {
-                            anchors.fill: modSvg
-                            source: modSvg
-                            colorization: 1.0
-                            colorizationColor: root.boxText
+                            visible: true
                         }
                     }
+
+                    Text {
+                        id: modPlus
+                        visible: parent.hasNext
+                        anchors.left: parent.left
+                        anchors.leftMargin: modDelegate.modWidth + Math.round(8 * root.scaleFactor)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "+"
+                        color: root.boxText
+                        font.family: Local.Theme.font
+                        font.pixelSize: Math.round(12 * root.scaleFactor)
+                        font.bold: true
+                    }
                 }
+            }
+
+            Text {
+                visible: !root.fullMode && root.shownModifiers.length > 0 && root.activeSpecial.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                text: "+"
+                color: root.boxText
+                font.family: Local.Theme.font
+                font.pixelSize: Math.round(12 * root.scaleFactor)
+                font.bold: true
             }
 
             // @note special / combo key box (e.g. in Ctrl+C, shows 'C' or 'Esc', '↵', etc.)
             Rectangle {
                 visible: !root.fullMode && root.activeSpecial.length > 0
-                // @note badged specials (tab, caps, pgup...) get a fixed svg width
-                readonly property string specialSvg: root.svgSource(root.activeSpecial)
+                readonly property string specialSvg: root.keyIcon(root.activeSpecial)
                 width: specialSvg.length > 0 ? Math.round(62 * root.scaleFactor) : Math.max(Math.round(50 * root.scaleFactor), specialText.implicitWidth + Math.round(26 * root.scaleFactor))
                 height: Math.round(50 * root.scaleFactor)
                 radius: Math.round(12 * root.scaleFactor)
@@ -428,19 +549,11 @@ PanelWindow {
                 Image {
                     id: specialSvgImage
                     anchors.fill: parent
-                    anchors.margins: Math.round(2 * root.scaleFactor)
+                    anchors.margins: root.keyIconMargin
                     source: parent.specialSvg
                     sourceSize: Qt.size(width, height)
                     fillMode: Image.PreserveAspectFit
-                    visible: false
-                }
-
-                MultiEffect {
                     visible: parent.specialSvg.length > 0
-                    anchors.fill: specialSvgImage
-                    source: specialSvgImage
-                    colorization: 1.0
-                    colorizationColor: root.boxText
                 }
 
                 Text {
@@ -450,7 +563,7 @@ PanelWindow {
                     text: root.activeSpecial
                     color: root.boxText
                     font.family: Local.Theme.font
-                    font.pixelSize: Math.round(18 * root.scaleFactor)
+                    font.pixelSize: Math.round(12 * root.scaleFactor)
                     font.letterSpacing: 0.5
                     font.bold: true
                 }
@@ -459,7 +572,7 @@ PanelWindow {
             // @note unified typed text bubble for phrases/words (no separate boxes per char)
             Rectangle {
                 visible: !root.fullMode && root.textBuffer.length > 0
-                width: Math.max(Math.round(50 * root.scaleFactor), typedText.implicitWidth + Math.round(28 * root.scaleFactor))
+                width: Math.min(Math.max(Math.round(50 * root.scaleFactor), typedText.implicitWidth + Math.round(28 * root.scaleFactor)), root.typedMaxWidth)
                 height: Math.round(50 * root.scaleFactor)
                 radius: Math.round(12 * root.scaleFactor)
                 color: root.boxBg
@@ -468,11 +581,17 @@ PanelWindow {
 
                 Text {
                     id: typedText
-                    anchors.centerIn: parent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: Math.round(14 * root.scaleFactor)
+                    anchors.rightMargin: Math.round(14 * root.scaleFactor)
+                    anchors.verticalCenter: parent.verticalCenter
                     text: root.textBuffer
+                    elide: Text.ElideLeft
+                    horizontalAlignment: Text.AlignRight
                     color: root.boxText
                     font.family: Local.Theme.font
-                    font.pixelSize: Math.round(18 * root.scaleFactor)
+                    font.pixelSize: Math.round(12 * root.scaleFactor)
                     font.bold: true
                 }
             }

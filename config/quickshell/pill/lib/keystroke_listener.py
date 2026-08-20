@@ -102,10 +102,24 @@ MODIFIER_CODES = {
     ecodes.KEY_LEFTSHIFT, ecodes.KEY_RIGHTSHIFT,
     ecodes.KEY_LEFTALT, ecodes.KEY_RIGHTALT,
     ecodes.KEY_LEFTMETA, ecodes.KEY_RIGHTMETA,
+}
+
+HIDDEN_CODES = {
+    ecodes.KEY_DELETE, ecodes.KEY_HOME, ecodes.KEY_END, ecodes.KEY_INSERT,
+    ecodes.KEY_F1, ecodes.KEY_F2, ecodes.KEY_F3, ecodes.KEY_F4,
+    ecodes.KEY_F5, ecodes.KEY_F6, ecodes.KEY_F7, ecodes.KEY_F8,
+    ecodes.KEY_F9, ecodes.KEY_F10, ecodes.KEY_F11, ecodes.KEY_F12,
     ecodes.KEY_FN,
 }
 
 WIDE_KEYS = {"Shift", "Tab", "Enter", "Backspace", "Caps"}
+
+
+def self_test():
+    assert ecodes.KEY_LEFTCTRL in MODIFIER_CODES
+    assert ecodes.KEY_FN not in MODIFIER_CODES
+    assert ecodes.KEY_F1 in HIDDEN_CODES
+    assert ecodes.KEY_DELETE in HIDDEN_CODES
 
 
 def find_keyboards():
@@ -152,6 +166,8 @@ def main():
                             continue
 
                         code = event.code
+                        if code in HIDDEN_CODES:
+                            continue
                         val = event.value  # 0: release, 1: press, 2: repeat
 
                         if code in (ecodes.KEY_LEFTSHIFT, ecodes.KEY_RIGHTSHIFT):
@@ -219,4 +235,7 @@ def main():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--self-test"]:
+        self_test()
+        sys.exit(0)
     main()
