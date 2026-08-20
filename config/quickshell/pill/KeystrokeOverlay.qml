@@ -51,6 +51,9 @@ PanelWindow {
     property int pulseCounter: 0
     property int latestPulse: 0
     property bool animateLatestIcon: false
+    property int textPulseCounter: 0
+    property int latestTextPulse: 0
+    property bool animateLatestText: false
     readonly property real modifierBadgeWidth: Math.round(62 * scaleFactor)
     readonly property real specialKeyWidth: Math.round(62 * scaleFactor)
     readonly property real keyIconMargin: Math.round(3 * scaleFactor)
@@ -158,6 +161,9 @@ PanelWindow {
 
     function appendChar(ch) {
         animateLatestIcon = false
+        const textPulse = ++textPulseCounter
+        latestTextPulse = textPulse
+        animateLatestText = true
         let buf = textBuffer + ch
         if (buf.length > maxBufferLength) {
             buf = buf.slice(buf.length - maxBufferLength)
@@ -167,9 +173,10 @@ PanelWindow {
         if (fullMode) {
             let segs = fullSegments.slice()
             if (segs.length > 0 && segs[segs.length - 1].kind === "text") {
-                segs[segs.length - 1] = { kind: "text", key: (segs[segs.length - 1].key + ch).slice(-maxBufferLength) }
+                const text = (segs[segs.length - 1].key + ch).slice(-maxBufferLength)
+                segs[segs.length - 1] = { kind: "text", key: text, previousText: text.slice(0, -ch.length), lastChar: ch, textPulse: textPulse }
             } else {
-                segs.push({ kind: "text", key: ch })
+                segs.push({ kind: "text", key: ch, previousText: "", lastChar: ch, textPulse: textPulse })
             }
             fullSegments = segs
         }
@@ -183,6 +190,7 @@ PanelWindow {
         const pulse = ++pulseCounter
         latestPulse = pulse
         animateLatestIcon = true
+        animateLatestText = false
         if (kind === "combo" && last && last.kind === "combo" && last.key === key.key && last.modifiers.join(",") === key.modifiers.join(",")) {
             segs[segs.length - 1] = { kind: kind, key: key.key, modifiers: key.modifiers, pulse: pulse }
             fullSegments = segs
@@ -349,9 +357,10 @@ PanelWindow {
                         delegate: Item {
                             required property var modelData
                             readonly property bool isCombo: modelData.kind === "combo"
+                            readonly property bool isText: modelData.kind === "text"
                             readonly property string svg: isCombo ? "" : root.keyIcon(modelData.key)
                             readonly property bool isSvg: svg.length > 0
-                            width: isCombo ? comboRow.width : isSvg ? Math.round(44 * root.scaleFactor) : segText.implicitWidth
+                            width: isCombo ? comboRow.width : isText ? textRun.width : isSvg ? Math.round(44 * root.scaleFactor) : segText.implicitWidth
                             height: Math.round(40 * root.scaleFactor)
 
                             Image {
@@ -377,7 +386,7 @@ PanelWindow {
 
                             Text {
                                 id: segText
-                                visible: !isSvg && !parent.isCombo
+                                visible: !isSvg && !parent.isCombo && !parent.isText
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.key
                                 color: root.boxText
@@ -385,6 +394,43 @@ PanelWindow {
                                 font.pixelSize: Math.round(11 * root.scaleFactor)
                                 font.letterSpacing: 0.5
                                 font.bold: true
+                            }
+
+                            Row {
+                                id: textRun
+                                visible: parent.isText
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 0
+
+                                Text {
+                                    text: modelData.previousText || ""
+                                    color: root.boxText
+                                    font.family: Local.Theme.font
+                                    font.pixelSize: Math.round(11 * root.scaleFactor)
+                                    font.letterSpacing: 0.5
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    id: latestChar
+                                    property int pulse: modelData.textPulse || 0
+                                    property bool shouldPulse: pulse === root.latestTextPulse
+                                    text: modelData.lastChar || modelData.key
+                                    color: root.boxText
+                                    font.family: Local.Theme.font
+                                    font.pixelSize: Math.round(11 * root.scaleFactor)
+                                    font.letterSpacing: 0.5
+                                    font.bold: true
+                                    transform: Translate { id: latestCharOffset; y: 0 }
+                                    onShouldPulseChanged: if (shouldPulse && root.animateLatestText) latestCharEntrance.restart()
+                                    Component.onCompleted: if (shouldPulse && root.animateLatestText) latestCharEntrance.start()
+
+                                    ParallelAnimation {
+                                        id: latestCharEntrance
+                                        NumberAnimation { target: latestChar; property: "opacity"; from: 0; to: 1; duration: 120; easing.type: Easing.OutCubic }
+                                        NumberAnimation { target: latestCharOffset; property: "y"; from: Math.round(6 * root.scaleFactor); to: 0; duration: 120; easing.type: Easing.OutCubic }
+                                    }
+                                }
                             }
 
                             Row {
@@ -581,6 +627,7 @@ PanelWindow {
 
                 Text {
                     id: typedText
+                    property int pulse: root.latestTextPulse
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.leftMargin: Math.round(14 * root.scaleFactor)
@@ -593,6 +640,14 @@ PanelWindow {
                     font.family: Local.Theme.font
                     font.pixelSize: Math.round(12 * root.scaleFactor)
                     font.bold: true
+                    transform: Translate { id: typedTextOffset; y: 0 }
+                    onPulseChanged: if (root.animateLatestText) typedTextEntrance.restart()
+
+                    ParallelAnimation {
+                        id: typedTextEntrance
+                        NumberAnimation { target: typedText; property: "opacity"; from: 0; to: 1; duration: 120; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: typedTextOffset; property: "y"; from: Math.round(6 * root.scaleFactor); to: 0; duration: 120; easing.type: Easing.OutCubic }
+                    }
                 }
             }
         }
