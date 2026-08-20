@@ -178,8 +178,28 @@ PanelWindow {
             } else {
                 segs.push({ kind: "text", key: ch, previousText: "", lastChar: ch, textPulse: textPulse })
             }
-            fullSegments = segs
+            fullSegments = trimFullSegments(segs)
         }
+    }
+
+    function trimFullSegments(segs) {
+        let budget = maxBufferLength
+        let kept = []
+        for (let i = segs.length - 1; i >= 0; i--) {
+            const segment = segs[i]
+            if (segment.kind === "text") {
+                if (budget === 0) continue
+                const text = segment.key.slice(-budget)
+                kept.unshift({ kind: "text", key: text, previousText: text.slice(0, -segment.lastChar.length), lastChar: segment.lastChar, textPulse: segment.textPulse })
+                budget -= text.length
+                continue
+            }
+            const cost = segment.kind === "combo" ? 6 : 4
+            if (cost > budget) continue
+            kept.unshift(segment)
+            budget -= cost
+        }
+        return kept
     }
 
     // @note full mode records typing, standalone keys, and modifier combinations in order
@@ -193,19 +213,19 @@ PanelWindow {
         animateLatestText = false
         if (kind === "combo" && last && last.kind === "combo" && last.key === key.key && last.modifiers.join(",") === key.modifiers.join(",")) {
             segs[segs.length - 1] = { kind: kind, key: key.key, modifiers: key.modifiers, pulse: pulse }
-            fullSegments = segs
+            fullSegments = trimFullSegments(segs)
             return
         }
         if (kind === "special" && last && last.kind === "special" && last.key === key) {
             segs[segs.length - 1] = { kind: kind, key: key, pulse: pulse }
-            fullSegments = segs
+            fullSegments = trimFullSegments(segs)
             return
         }
         if (kind === "combo")
             segs.push({ kind: kind, key: key.key, modifiers: key.modifiers, pulse: pulse })
         else
             segs.push({ kind: kind, key: key, pulse: pulse })
-        fullSegments = segs
+        fullSegments = trimFullSegments(segs)
     }
 
     function handleKeyRelease(msg) {
@@ -435,10 +455,21 @@ PanelWindow {
 
                             Row {
                                 id: comboRow
+                                property int pulse: parent.modelData.pulse || 0
+                                property bool shouldPulse: pulse === root.latestPulse
                                 visible: parent.isCombo
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: Math.round(5 * root.scaleFactor)
                                 height: Math.round(32 * root.scaleFactor)
+                                transform: Translate { id: comboRowOffset; y: 0 }
+                                onShouldPulseChanged: if (shouldPulse && root.animateLatestIcon) comboRowEntrance.restart()
+                                Component.onCompleted: if (shouldPulse && root.animateLatestIcon) comboRowEntrance.start()
+
+                                ParallelAnimation {
+                                    id: comboRowEntrance
+                                    NumberAnimation { target: comboRow; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: comboRowOffset; property: "y"; from: Math.round(8 * root.scaleFactor); to: 0; duration: 160; easing.type: Easing.OutCubic }
+                                }
 
                                 Repeater {
                                     model: modelData.modifiers
@@ -452,22 +483,11 @@ PanelWindow {
 
                                         Image {
                                             id: comboModifierIcon
-                                            property int pulse: comboRow.parent.modelData.pulse || 0
-                                            property bool shouldPulse: pulse === root.latestPulse
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: Math.round(30 * root.scaleFactor)
                                             height: width
                                             source: root.keyIcon(modelData)
                                             fillMode: Image.PreserveAspectFit
-                                            transform: Translate { id: comboModifierOffset; y: 0 }
-                                            onShouldPulseChanged: if (shouldPulse && root.animateLatestIcon) comboModifierEntrance.restart()
-                                            Component.onCompleted: if (shouldPulse && root.animateLatestIcon) comboModifierEntrance.start()
-
-                                            ParallelAnimation {
-                                                id: comboModifierEntrance
-                                                NumberAnimation { target: comboModifierIcon; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
-                                                NumberAnimation { target: comboModifierOffset; property: "y"; from: Math.round(8 * root.scaleFactor); to: 0; duration: 160; easing.type: Easing.OutCubic }
-                                            }
                                         }
 
                                         Text {
