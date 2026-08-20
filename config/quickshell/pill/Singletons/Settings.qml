@@ -48,7 +48,6 @@ Item {
     property string keystrokePosition: "bottom-center"
     property int keystrokeSize: 100
     property int keystrokeFadeTime: 2
-    property string keystrokeMode: "separate"
     readonly property string path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings"
     readonly property string defaultPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/pill-settings.default"
 
@@ -108,7 +107,6 @@ Item {
                 if (pair[0] === "keystrokePosition") { const valid = ["top-left","top-center","top-right","bottom-left","bottom-center","bottom-right"]; settings.keystrokePosition = valid.includes(pair[1]) ? pair[1] : "bottom-center" }
                 if (pair[0] === "keystrokeSize") settings.keystrokeSize = Math.max(50, Math.min(200, Number(pair[1]) || 100))
                 if (pair[0] === "keystrokeFadeTime") settings.keystrokeFadeTime = Math.max(1, Math.min(10, Number(pair[1]) || 2))
-                if (pair[0] === "keystrokeMode") { const valid = ["full", "separate"]; settings.keystrokeMode = valid.includes(pair[1]) ? pair[1] : "separate" }
             }
             if (percentRoundness) {
                 settings.barRadius = Math.round(settings.barRadius * 15 / 100)
@@ -128,7 +126,7 @@ Item {
             aiSaveProcess.running = true
         }
     }
-    Process { id: aiSaveProcess; onExited: { keystrokeSaveProcess.command = ["sh", "-c", "tmp=$(mktemp); awk '!/^keystrokeEnabled=|^keystrokeShowMouseClicks=|^keystrokePosition=|^keystrokeSize=|^keystrokeFadeTime=|^keystrokeMode=/' \"$1\" > \"$tmp\" && printf 'keystrokeEnabled=%s\\nkeystrokeShowMouseClicks=%s\\nkeystrokePosition=%s\\nkeystrokeSize=%s\\nkeystrokeFadeTime=%s\\nkeystrokeMode=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" >> \"$tmp\" && mv \"$tmp\" \"$1\"", "keystroke-settings", settings.path, settings.keystrokeEnabled ? "true" : "false", settings.keystrokeShowMouseClicks ? "true" : "false", settings.keystrokePosition, settings.keystrokeSize, settings.keystrokeFadeTime, settings.keystrokeMode]; keystrokeSaveProcess.running = true } }
+    Process { id: aiSaveProcess; onExited: { keystrokeSaveProcess.command = ["sh", "-c", "tmp=$(mktemp); awk '!/^keystrokeEnabled=|^keystrokeShowMouseClicks=|^keystrokePosition=|^keystrokeSize=|^keystrokeFadeTime=|^keystrokeMode=/' \"$1\" > \"$tmp\" && printf 'keystrokeEnabled=%s\\nkeystrokeShowMouseClicks=%s\\nkeystrokePosition=%s\\nkeystrokeSize=%s\\nkeystrokeFadeTime=%s\\n' \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" >> \"$tmp\" && mv \"$tmp\" \"$1\"", "keystroke-settings", settings.path, settings.keystrokeEnabled ? "true" : "false", settings.keystrokeShowMouseClicks ? "true" : "false", settings.keystrokePosition, settings.keystrokeSize, settings.keystrokeFadeTime]; keystrokeSaveProcess.running = true } }
     Process { id: keystrokeSaveProcess }
     Process { id: resetProcess; onExited: settingsFile.reload() }
 }

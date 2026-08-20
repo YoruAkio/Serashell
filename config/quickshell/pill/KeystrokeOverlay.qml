@@ -28,7 +28,7 @@ PanelWindow {
 
     readonly property real scaleFactor: Local.Settings.keystrokeSize / 60
     readonly property int fadeTimeMs: Local.Settings.keystrokeFadeTime * 1000
-    readonly property bool fullMode: Local.Settings.keystrokeMode === "full"
+    readonly property bool fullMode: true
 
     // @note only the current keybind asset set is used by the overlay
     function keyIcon(key) {
