@@ -23,8 +23,13 @@ The active Quickshell configuration lives in `config/quickshell/`.
 - **Panels** — calendar, system monitor, media details, frequently used app launcher, clipboard history, wallpaper picker, theme selection, and AI usage
 - **App launcher** — fuzzy search with persistent most-used application ranking
 - **AI usage** — provider usage, token, and estimated cost summaries in the bar and a dedicated panel
-- **Settings** — persistent appearance, bar, pill, panel sizing, date/time, system status, and AI usage preferences
+- **Keystroke Visualizer** — theme-aware full-width key display for typing and shortcuts, with animated keybind icons and optional left/right mouse-click indicators
+- **Settings** — persistent appearance, bar, pill, panel sizing, date/time, system status, AI usage, and keystroke visualizer preferences
 - **Themes** — wallpaper-rice light and dark themes shared by the shell and companion applications
+
+### Keystroke Visualizer
+
+Enable it from **Settings → Keystroke**. The overlay records typing and modifier combinations in Full mode, follows the active light/dark theme, and can optionally show left and right mouse clicks. Function keys and navigation keys are intentionally hidden to keep the display focused.
 
 For local development, validate the shell in the foreground:
 
