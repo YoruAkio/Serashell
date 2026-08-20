@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -23,6 +24,7 @@ PanelWindow {
     readonly property color boxText: Local.Theme.light ? "#F1DBC2" : "#352B2D"
     readonly property color boxAccent: Local.Theme.light ? "#DFC8B1" : "#44373A"
     readonly property color boxMuted: Local.Theme.light ? "#AA9D8A" : "#625458"
+    readonly property color iconColor: boxText
 
     readonly property real scaleFactor: Local.Settings.keystrokeSize / 60
     readonly property int fadeTimeMs: Local.Settings.keystrokeFadeTime * 1000
@@ -37,6 +39,12 @@ PanelWindow {
             Esc: "Esc", Shift: "Shift", Super: "Super", Tab: "Tab"
         }
         return icons[key] ? "assets/Keybind" + icons[key] + ".svg" : ""
+    }
+
+    function mouseClickHighlight(key) {
+        if (key === "MouseLeft") return "assets/MouseClickLeftActive.svg"
+        if (key === "MouseRight") return "assets/MouseClickRightActive.svg"
+        return ""
     }
 
     // @note state buffers
@@ -396,6 +404,7 @@ PanelWindow {
                             required property var modelData
                             readonly property bool isCombo: modelData.kind === "combo"
                             readonly property bool isText: modelData.kind === "text"
+                            readonly property bool isMouse: modelData.key === "MouseLeft" || modelData.key === "MouseRight"
                             readonly property string svg: isCombo ? "" : root.keyIcon(modelData.key)
                             readonly property bool isSvg: svg.length > 0
                             width: isCombo ? comboRow.width : isText ? textRun.width : isSvg ? Math.round(44 * root.scaleFactor) : segText.implicitWidth
@@ -403,22 +412,63 @@ PanelWindow {
 
                             Image {
                                 id: segSvg
-                                property int pulse: modelData.pulse || 0
-                                property bool shouldPulse: pulse === root.latestPulse
                                 anchors.fill: parent
                                 anchors.margins: root.keyIconMargin
                                 source: isSvg ? parent.svg : ""
                                 sourceSize: Qt.size(width, height)
                                 fillMode: Image.PreserveAspectFit
-                                visible: isSvg
+                                visible: false
+                            }
+
+                            MultiEffect {
+                                id: segSvgTint
+                                property int pulse: modelData.pulse || 0
+                                property bool shouldPulse: pulse === root.latestPulse
+                                anchors.fill: parent
+                                anchors.margins: root.keyIconMargin
+                                source: segSvg
+                                brightness: 1
+                                colorization: 1
+                                colorizationColor: root.iconColor
                                 transform: Translate { id: segSvgOffset; y: 0 }
-                                onShouldPulseChanged: if (shouldPulse && root.animateLatestIcon && visible) segSvgEntrance.restart()
-                                Component.onCompleted: if (shouldPulse && root.animateLatestIcon && visible) segSvgEntrance.start()
+                                onShouldPulseChanged: if (shouldPulse && root.animateLatestIcon && isSvg) segSvgEntrance.restart()
+                                Component.onCompleted: if (shouldPulse && root.animateLatestIcon && isSvg) segSvgEntrance.start()
 
                                 ParallelAnimation {
                                     id: segSvgEntrance
-                                    NumberAnimation { target: segSvg; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: segSvgTint; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
                                     NumberAnimation { target: segSvgOffset; property: "y"; from: Math.round(8 * root.scaleFactor); to: 0; duration: 160; easing.type: Easing.OutCubic }
+                                }
+                            }
+
+                            Image {
+                                id: mouseClickActive
+                                anchors.fill: parent
+                                anchors.margins: root.keyIconMargin
+                                source: root.mouseClickHighlight(modelData.key)
+                                sourceSize: Qt.size(width, height)
+                                fillMode: Image.PreserveAspectFit
+                                visible: false
+                            }
+
+                            MultiEffect {
+                                id: mouseClickActiveTint
+                                property int pulse: modelData.pulse || 0
+                                property bool shouldPulse: pulse === root.latestPulse
+                                anchors.fill: mouseClickActive
+                                source: mouseClickActive
+                                visible: parent.isMouse
+                                brightness: 1
+                                colorization: 1
+                                colorizationColor: Local.Theme.highlight
+                                transform: Translate { id: mouseClickActiveOffset; y: 0 }
+                                onShouldPulseChanged: if (shouldPulse && root.animateLatestIcon && visible) mouseClickActiveEntrance.restart()
+                                Component.onCompleted: if (shouldPulse && root.animateLatestIcon && visible) mouseClickActiveEntrance.start()
+
+                                ParallelAnimation {
+                                    id: mouseClickActiveEntrance
+                                    NumberAnimation { target: mouseClickActiveTint; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: mouseClickActiveOffset; property: "y"; from: Math.round(8 * root.scaleFactor); to: 0; duration: 160; easing.type: Easing.OutCubic }
                                 }
                             }
 
@@ -506,6 +556,15 @@ PanelWindow {
                                             height: width
                                             source: root.keyIcon(modelData)
                                             fillMode: Image.PreserveAspectFit
+                                            visible: false
+                                        }
+
+                                        MultiEffect {
+                                            anchors.fill: comboModifierIcon
+                                            source: comboModifierIcon
+                                            brightness: 1
+                                            colorization: 1
+                                            colorizationColor: root.iconColor
                                         }
 
                                         Text {
@@ -590,7 +649,15 @@ PanelWindow {
                             source: root.keyIcon(modDelegate.modelData)
                             sourceSize: Qt.size(width, height)
                             fillMode: Image.PreserveAspectFit
-                            visible: true
+                            visible: false
+                        }
+
+                        MultiEffect {
+                            anchors.fill: modSvg
+                            source: modSvg
+                            brightness: 1
+                            colorization: 1
+                            colorizationColor: root.iconColor
                         }
                     }
 
@@ -637,7 +704,34 @@ PanelWindow {
                     source: parent.specialSvg
                     sourceSize: Qt.size(width, height)
                     fillMode: Image.PreserveAspectFit
-                    visible: parent.specialSvg.length > 0
+                    visible: false
+                }
+
+                MultiEffect {
+                    anchors.fill: specialSvgImage
+                    source: specialSvgImage
+                    brightness: 1
+                    colorization: 1
+                    colorizationColor: root.iconColor
+                }
+
+                Image {
+                    id: specialMouseClickActive
+                    anchors.fill: parent
+                    anchors.margins: root.keyIconMargin
+                    source: root.mouseClickHighlight(root.activeSpecial)
+                    sourceSize: Qt.size(width, height)
+                    fillMode: Image.PreserveAspectFit
+                    visible: false
+                }
+
+                MultiEffect {
+                    anchors.fill: specialMouseClickActive
+                    source: specialMouseClickActive
+                    visible: root.activeSpecial === "MouseLeft" || root.activeSpecial === "MouseRight"
+                    brightness: 1
+                    colorization: 1
+                    colorizationColor: Local.Theme.highlight
                 }
 
                 Text {
