@@ -30,6 +30,8 @@ PanelWindow {
 
     // @note only the current keybind asset set is used by the overlay
     function keyIcon(key) {
+        if (key === "MouseLeft") return "assets/MouseClickLeft.svg"
+        if (key === "MouseRight") return "assets/MouseClickRight.svg"
         const icons = {
             Alt: "Alt", Backspace: "Backspace", Ctrl: "Ctrl", Enter: "Enter",
             Esc: "Esc", Shift: "Shift", Super: "Super", Tab: "Tab"
@@ -281,7 +283,7 @@ PanelWindow {
 
     Process {
         id: keystrokeProcess
-        command: ["python3", Qt.resolvedUrl("lib/keystroke_listener.py").toString().replace("file://", "")]
+        command: ["python3", Qt.resolvedUrl("lib/keystroke_listener.py").toString().replace("file://", "")].concat(Local.Settings.keystrokeShowMouseClicks ? ["--mouse"] : [])
         running: Local.Settings.keystrokeEnabled
 
         stdout: SplitParser {
@@ -310,6 +312,22 @@ PanelWindow {
         onTriggered: {
             if (Local.Settings.keystrokeEnabled) {
                 keystrokeProcess.running = true
+            }
+        }
+    }
+
+    Timer {
+        id: settingsRestartTimer
+        interval: 80
+        onTriggered: if (Local.Settings.keystrokeEnabled) keystrokeProcess.running = true
+    }
+
+    Connections {
+        target: Local.Settings
+        function onKeystrokeShowMouseClicksChanged() {
+            if (keystrokeProcess.running) {
+                keystrokeProcess.running = false
+                settingsRestartTimer.restart()
             }
         }
     }

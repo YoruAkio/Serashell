@@ -114,46 +114,58 @@ HIDDEN_CODES = {
 
 WIDE_KEYS = {"Shift", "Tab", "Enter", "Backspace", "Caps"}
 
+MOUSE_BUTTONS = {
+    ecodes.BTN_LEFT: "MouseLeft",
+    ecodes.BTN_RIGHT: "MouseRight",
+}
+
 
 def self_test():
     assert ecodes.KEY_LEFTCTRL in MODIFIER_CODES
     assert ecodes.KEY_FN not in MODIFIER_CODES
     assert ecodes.KEY_F1 in HIDDEN_CODES
     assert ecodes.KEY_DELETE in HIDDEN_CODES
+    assert supports_input_device({ecodes.EV_KEY: [ecodes.BTN_LEFT]}, True)
+    assert not supports_input_device({ecodes.EV_KEY: [ecodes.BTN_LEFT]}, False)
 
 
-def find_keyboards():
-    """find all keyboard input devices."""
-    keyboards = []
+def supports_input_device(caps, include_mouse):
+    """return whether capabilities belong to a keyboard or requested mouse."""
+    key_codes = caps.get(ecodes.EV_KEY, [])
+    return ((ecodes.KEY_A in key_codes and ecodes.KEY_Z in key_codes)
+            or (include_mouse and any(code in key_codes for code in MOUSE_BUTTONS)))
+
+
+def find_input_devices(include_mouse):
+    """find keyboards and, when requested, mouse button devices."""
+    devices = []
     for path in sorted(evdev.list_devices()):
         try:
             dev = evdev.InputDevice(path)
             caps = dev.capabilities(verbose=False)
-            if ecodes.EV_KEY in caps:
-                key_codes = caps[ecodes.EV_KEY]
-                if ecodes.KEY_A in key_codes and ecodes.KEY_Z in key_codes:
-                    keyboards.append(dev)
+            if supports_input_device(caps, include_mouse):
+                devices.append(dev)
         except (PermissionError, OSError):
             continue
-    return keyboards
+    return devices
 
 
-def main():
+def main(include_mouse=False):
     signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
 
-    keyboards = find_keyboards()
-    if not keyboards:
+    devices = find_input_devices(include_mouse)
+    if not devices:
         print(json.dumps({"type": "error", "message": "no keyboard devices found"}), flush=True)
         sys.exit(1)
 
     sel = selectors.DefaultSelector()
-    for kb in keyboards:
-        sel.register(kb, selectors.EVENT_READ)
+    for dev in devices:
+        sel.register(dev, selectors.EVENT_READ)
 
     shift_held = False
     # @note seed from the real led so state is correct from the first keypress
-    caps_lock = any(ecodes.LED_CAPSL in kb.leds() for kb in keyboards)
+    caps_lock = any(ecodes.LED_CAPSL in dev.leds() for dev in devices)
 
     try:
         while True:
@@ -179,7 +191,9 @@ def main():
                         
                         # Determine key representation
                         is_char = False
-                        if code in UNSHIFTED_MAP:
+                        if code in MOUSE_BUTTONS:
+                            label = MOUSE_BUTTONS[code]
+                        elif code in UNSHIFTED_MAP:
                             is_char = True
                             # Character sensitivity
                             if shift_held:
@@ -227,15 +241,15 @@ def main():
         pass
     finally:
         sel.close()
-        for kb in keyboards:
+        for dev in devices:
             try:
-                kb.close()
+                dev.close()
             except Exception:
                 pass
 
 
 if __name__ == "__main__":
-    if sys.argv[1:] == ["--self-test"]:
+    if "--self-test" in sys.argv[1:]:
         self_test()
         sys.exit(0)
-    main()
+    main("--mouse" in sys.argv[1:])

@@ -482,7 +482,7 @@ FloatingWindow {
                     x: 20
                     y: 4
                     width: contentViewport.width - 40
-                    height: root.page === "bar" ? 480 : root.page === "panel-sizes" ? 340 : root.page === "keystroke" ? 520 : contentViewport.height - 40
+                    height: root.page === "bar" ? 480 : root.page === "panel-sizes" ? 340 : root.page === "keystroke" ? 590 : contentViewport.height - 40
 
                 Column {
                     visible: root.page === "pill"
@@ -906,6 +906,17 @@ FloatingWindow {
                         checked: Local.Settings.keystrokeEnabled
                         onToggled: value => {
                             Local.Settings.keystrokeEnabled = value
+                            Local.Settings.save()
+                        }
+                    }
+
+                    SettingRow {
+                        label: "Show mouse clicks"
+                        description: "Display left and right clicks in the overlay"
+                        enabled: Local.Settings.keystrokeEnabled
+                        checked: Local.Settings.keystrokeShowMouseClicks
+                        onToggled: value => {
+                            Local.Settings.keystrokeShowMouseClicks = value
                             Local.Settings.save()
                         }
                     }

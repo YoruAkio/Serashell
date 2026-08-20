@@ -27,3 +27,4 @@ clipboardPanelSize=100
 launcherPanelSize=100
 wallpaperPanelSize=100
 themePanelSize=100
+keystrokeShowMouseClicks=false
