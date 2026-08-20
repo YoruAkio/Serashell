@@ -75,6 +75,15 @@ PanelWindow {
             return
         }
 
+        // @note shortcuts start a new text run and only record their first press
+        if (activeModifiers.length > 0) {
+            textBuffer = ""
+            if (msg.is_repeat) {
+                fadeTimer.restart()
+                return
+            }
+        }
+
         // @note backspace appends one ⌫; consecutive presses collapse into the same icon
         // ponytail: no String.trimEnd in quickshell's js engine, strip trailing spaces via regex
         if (key === "Backspace") {
@@ -132,6 +141,8 @@ PanelWindow {
 
         // @note regular typing: append character into unified buffer
         if (isChar || key.length === 1) {
+            activeSpecial = ""
+            specialClearTimer.stop()
             appendChar(key)
         } else {
             activeSpecial = key
@@ -148,13 +159,13 @@ PanelWindow {
             buf = buf.slice(buf.length - maxBufferLength)
         }
         textBuffer = buf
-        // @note full mode keeps typed text as the trailing segment
+        // @note full mode keeps each uninterrupted typing run as one segment
         if (fullMode) {
             let segs = fullSegments.slice()
             if (segs.length > 0 && segs[segs.length - 1].kind === "text") {
-                segs[segs.length - 1] = { kind: "text", key: buf }
+                segs[segs.length - 1] = { kind: "text", key: (segs[segs.length - 1].key + ch).slice(-maxBufferLength) }
             } else {
-                segs.push({ kind: "text", key: buf })
+                segs.push({ kind: "text", key: ch })
             }
             fullSegments = segs
         }
@@ -181,20 +192,16 @@ PanelWindow {
 
     Timer {
         id: specialClearTimer
-        interval: 1500
+        interval: root.fadeTimeMs
         onTriggered: root.activeSpecial = ""
     }
 
     Timer {
         id: modLingerTimer
-        interval: 1500
+        interval: root.fadeTimeMs
         onTriggered: {
             // @note drop any modifier that is no longer physically held
             root.shownModifiers = root.activeModifiers.slice()
-            if (root.fullMode) {
-                const held = root.activeModifiers
-                root.fullSegments = root.fullSegments.filter(seg => seg.kind !== "mod" || held.includes(seg.key))
-            }
         }
     }
 

@@ -11,6 +11,7 @@ PACKAGES=(
     "hyprland"
     "hyprlock"
     "hypridle"
+    "hyprpolkitagent"
     "xdg-desktop-portal-hyprland"
     
     # terminal and shell
@@ -70,6 +71,7 @@ PACKAGES=(
     "lm_sensors"
     "jq"
     "polkit"
+    "python-evdev"
     
     # pdf viewer
     "zathura"
